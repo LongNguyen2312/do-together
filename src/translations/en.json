@@ -1,0 +1,158 @@
+{
+  "common": {
+    "appName": "DoTogether",
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "done": "Done",
+    "ok": "Ok",
+    "save": "Save",
+    "skip": "Skip",
+    "continue": "Continue",
+    "getStarted": "Get Started",
+    "errorTitle": "There was an error.",
+    "close": "Close"
+  },
+  "splash": {
+    "tagline": "Do what you love, together."
+  },
+  "onboarding": {
+    "slide1": {
+      "title": "Find people to do things with",
+      "description": "Discover people nearby who want to do the same thing at the exact same time.",
+      "badge": "14 spontaneous activities live",
+      "highlights": "Running, Coffee, Climbing & more"
+    },
+    "slide2": {
+      "title": "Tap “Together” and go",
+      "description": "Share what you feel like doing right now — people nearby can join in seconds.",
+      "badge": "Broadcast in seconds",
+      "highlights": "No planning, no endless group chats"
+    },
+    "slide3": {
+      "title": "Match with your vibe",
+      "description": "Meet people and small groups who share your interests, chat first, then meet up somewhere public.",
+      "badge": "4 people match your vibe",
+      "highlights": "Verified profiles & safe meetups"
+    },
+    "freeCard": {
+      "name": "Linh",
+      "status": "Free now · 2h left",
+      "activity": "Up for a coffee ☕",
+      "distance": "800 m",
+      "until": "Until 6 PM",
+      "broadcasting": "Broadcasting to 12 people nearby"
+    },
+    "matchCard": {
+      "tag": "Climbing · 5 min away"
+    }
+  },
+  "auth": {
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "login": "Log In",
+    "orContinueWith": "or continue with",
+    "continueGoogle": "Continue with Google",
+    "continueApple": "Continue with Apple",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign up now",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "emailRequired": "Please enter your email.",
+    "emailInvalid": "Please enter a valid email.",
+    "passwordRequired": "Please enter your password.",
+    "passwordInvalid": "Password must be at least 6 characters.",
+    "loginErrorTitle": "Couldn't log in",
+    "genericError": "Something went wrong. Please try again.",
+    "comingSoonTitle": "Coming soon",
+    "comingSoonMessage": "This feature isn't available yet.",
+    "signIn": "Sign In",
+    "communityBadge": "Vibrant community",
+    "signUpTitle": "Create a new account",
+    "signUpSubtitle": "Connect with locals for runs, coffee & spontaneous adventures.",
+    "joinedThisWeek": "+1,420 people joined this week",
+    "fullName": "Full name",
+    "fullNamePlaceholder": "Jane Doe",
+    "fullNameRequired": "Please enter your full name.",
+    "newPasswordPlaceholder": "At least 6 characters",
+    "strengthLabel": "Password strength",
+    "strengthWeak": "Too short",
+    "strengthFair": "Pretty good",
+    "strengthStrong": "Very strong & secure",
+    "strengthMax": "Max security",
+    "termsPrefix": "I agree to DoTogether's ",
+    "termsOfService": "Terms of Service",
+    "termsAnd": " and ",
+    "privacyPolicy": "Privacy Policy",
+    "termsSuffix": ".",
+    "termsRequired": "Please accept the terms to continue.",
+    "createAccount": "Create account",
+    "haveAccount": "Already have an account?",
+    "signInLink": "Sign in",
+    "signUpErrorTitle": "Couldn't create account",
+    "back": "Go back"
+  },
+  "forgotPassword": {
+    "badge": "Account recovery",
+    "title": "Forgot password?",
+    "description": "No worries! Enter your DoTogether account email and we'll send you a code to reset your password.",
+    "codeInfo": "A 6-digit security code will be sent to your inbox right away.",
+    "emailLabel": "Email address",
+    "required": "Required",
+    "emailPlaceholder": "name@example.com",
+    "emailHint": "e.g. linh.nguyen@gmail.com",
+    "clearEmail": "Clear email",
+    "sendCode": "Send code",
+    "sentTitle": "Code sent!",
+    "sentMessage": "Please check your inbox (or spam folder) within a few minutes.",
+    "communityTitle": "120+ events happening today",
+    "communitySubtitle": "Reset now, don't miss your crew",
+    "noAccess": "Can't access this email anymore?",
+    "contactSupport": "Contact account support",
+    "errorTitle": "Couldn't send code"
+  },
+  "home": {
+    "logOut": "Log out",
+    "imFree": "I'm Free",
+    "myLocation": "My location",
+    "notifications": "Notifications",
+    "searchPlaceholder": "What do you want to do?",
+    "currentLocation": "{{place}} • Current location",
+    "categories": {
+      "all": "All",
+      "running": "Running",
+      "coffee": "Coffee",
+      "food": "Food",
+      "football": "Football",
+      "badminton": "Badminton",
+      "walking": "Walking"
+    },
+    "mapStyle": "Change map style",
+    "followHeading": "Follow my heading",
+    "spots_one": "{{count}} spot",
+    "spots_other": "{{count}} spots",
+    "happeningNow": "Happening right now",
+    "nearby": "{{count}} nearby",
+    "joined": "{{count}} Joined",
+    "joinedOf": "{{count}}/{{capacity}} Joined",
+    "join": "Join",
+    "details": "Details",
+    "empty": "Nothing nearby in this category yet.",
+    "mapStyles": {
+      "title": "Map style",
+      "liberty": "Colorful",
+      "bright": "Bright",
+      "positron": "Minimal",
+      "dark": "Dark"
+    }
+  },
+  "tabs": {
+    "home": "Home",
+    "discover": "Discover",
+    "activities": "Activities",
+    "profile": "Profile"
+  }
+}

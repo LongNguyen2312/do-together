@@ -1,9 +1,15 @@
 <resources>
 
-    <!-- Base application theme. -->
+    <!-- Splash colour as windowBackground from cold start; JS continues on the same canvas. -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@drawable/launch_screen</item>
+    </style>
+
+    <!-- Instant dismiss — the JS splash already paints a matching canvas. -->
+    <style name="SplashViewTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
     </style>
 
 </resources>

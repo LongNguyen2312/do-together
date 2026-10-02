@@ -1,0 +1,43 @@
+export const lightColors = {
+  primary: '#FF5A36',
+  primaryDark: '#B52603',
+  primarySoft: '#FFDAD2',
+  mint: '#86F9BC',
+  success: '#2BA670',
+  danger: '#BA1A1A',
+  background: '#F9F9F7',
+  surface: '#F4F4F2',
+  surfaceMuted: '#EEEEEC',
+  surfaceHigh: '#E8E8E6',
+  card: '#FFFFFF',
+  text: '#1A1C1B',
+  textWarm: '#5B403A',
+  textSecondary: '#5F5E5E',
+  textMuted: '#8F8F8D',
+  border: '#E2E3E1',
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
+export const darkColors: typeof lightColors = {
+  primary: '#FF6B4A',
+  primaryDark: '#FFB4A3',
+  primarySoft: '#4A1C12',
+  mint: '#1F5A3F',
+  success: '#69DCA1',
+  danger: '#FFB4AB',
+  background: '#121413',
+  surface: '#1C1E1D',
+  surfaceMuted: '#262827',
+  surfaceHigh: '#2F3130',
+  card: '#1F2120',
+  text: '#F1F1EF',
+  textWarm: '#FFB4A3',
+  textSecondary: '#C8C6C5',
+  textMuted: '#918F8E',
+  border: '#333534',
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
+export type AppColors = typeof lightColors;

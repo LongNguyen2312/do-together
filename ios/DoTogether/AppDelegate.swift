@@ -22,7 +22,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     reactNativeFactory = factory
 
     window = UIWindow(frame: UIScreen.main.bounds)
+    // Same cream as the splash: any frame before JS paints must not flash white.
+    window?.backgroundColor = UIColor(red: 249 / 255, green: 249 / 255, blue: 247 / 255, alpha: 1)
 
+    showSplashScreen()
     factory.startReactNative(
       withModuleName: "DoTogether",
       in: window,
@@ -30,6 +33,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
 
     return true
+  }
+
+  /// LaunchScreen overlay until JS calls hideSplash().
+  private func showSplashScreen() {
+    guard
+      let splashClass = NSClassFromString("SplashView") as? NSObject.Type,
+      let splashInstance = splashClass.perform(NSSelectorFromString("sharedInstance"))?
+        .takeUnretainedValue() as? NSObject
+    else {
+      return
+    }
+    splashInstance.perform(NSSelectorFromString("showSplash"))
   }
 }
 

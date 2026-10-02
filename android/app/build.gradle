@@ -77,9 +77,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.dotogether"
+    namespace "com.logan.dotogether"
     defaultConfig {
-        applicationId "com.dotogether"
+        applicationId "com.logan.dotogether"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -117,3 +117,9 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Package Ionicons.ttf into the APK (react-native-vector-icons).
+project.ext.vectoricons = [
+    iconFontNames: ['Ionicons.ttf']
+]
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
