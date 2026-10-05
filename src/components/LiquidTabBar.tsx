@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import {
   isLiquidGlassSupported,
@@ -201,9 +201,7 @@ export default function LiquidTabBar({ state, navigation }: BottomTabBarProps) {
     };
   });
 
-  const onImFree = () => {
-    Alert.alert(t('auth.comingSoonTitle'), t('auth.comingSoonMessage'));
-  };
+  const onImFree = () => navigation.navigate('ImFree');
 
   return (
     <View

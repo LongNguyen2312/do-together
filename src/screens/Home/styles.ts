@@ -298,13 +298,23 @@ export function createStyles(colors: AppColors) {
       backgroundColor: colors.card,
     },
     cluster: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(4),
       paddingHorizontal: ms(10),
       paddingVertical: ms(5),
       borderRadius: ms(999),
       backgroundColor: colors.primary,
       ...softShadow,
     },
+    clusterEmoji: {
+      fontSize: fs(10),
+      lineHeight: fs(13),
+    },
     clusterText: {
+      // letterSpacing trails the last glyph; pull it back so the label stays centered.
+      marginRight: -0.5,
       fontSize: fs(9),
       lineHeight: fs(11),
       fontFamily: fonts.bold,

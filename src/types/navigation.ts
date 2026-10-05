@@ -13,4 +13,5 @@ export type RootStackParamList = {
   SignUp: undefined;
   ForgotPassword: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
+  ImFree: undefined;
 };

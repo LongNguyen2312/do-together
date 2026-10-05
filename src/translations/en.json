@@ -154,5 +154,56 @@
     "discover": "Discover",
     "activities": "Activities",
     "profile": "Profile"
+  },
+  "imFree": {
+    "title": "I'm Free Broadcast",
+    "heading": "What do you want to do?",
+    "subheading": "Find people nearby who want to do the same thing right now.",
+    "activities": {
+      "running": "Running",
+      "coffee": "Coffee",
+      "food": "Food & Bites",
+      "football": "Football",
+      "badminton": "Badminton",
+      "gaming": "Gaming",
+      "movie": "Movie",
+      "walking": "Walking",
+      "photography": "Photography",
+      "coworking": "Coworking",
+      "language": "Language",
+      "other": "Other"
+    },
+    "when": "When?",
+    "instantMatch": "Instant match",
+    "whenOptions": {
+      "now": "Right now",
+      "in30": "In 30 min",
+      "tonight": "Tonight (19:00)"
+    },
+    "pickTime": "Pick time",
+    "pickTimeTitle": "Pick a time",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "customTime": "{{day}} {{time}}",
+    "pastTime": "That time has already passed",
+    "duration": "Duration",
+    "durations": {
+      "30m": "30 min",
+      "1h": "1 hour",
+      "2h": "2 hours",
+      "3h": "3+ hours"
+    },
+    "note": "Note",
+    "optional": "Optional",
+    "notePlaceholder": "E.g. Looking for a running buddy around West Lake, about 5km at 6:00 pace...",
+    "noteCounter": "{{count}}/{{max}}",
+    "radius": "Radius distance",
+    "km": "{{value}} km",
+    "activeNearby_one": "~{{count}} person active nearby",
+    "activeNearby_other": "~{{count}} people active nearby",
+    "findBuddies": "Find {{activity}} buddies nearby",
+    "broadcasting": "Broadcasting...",
+    "broadcastTitle": "You're live!",
+    "broadcastMessage": "We'll let you know as soon as someone nearby wants to do {{activity}} with you."
   }
 }

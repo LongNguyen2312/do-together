@@ -12,12 +12,15 @@ import {
   Animated,
   Easing,
   Image,
+  Keyboard,
   Linking,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
+  type ScrollViewInstance,
+  type TextInputInstance,
 } from 'react-native';
 import {
   Camera,
@@ -99,6 +102,11 @@ const SPOTS_CENTER: LngLat = [
 const CATEGORY_EMOJI = Object.fromEntries(
   CATEGORIES.map(c => [c.id, c.emoji]),
 ) as Record<CategoryId, string | undefined>;
+
+interface ChipLayout {
+  x: number;
+  width: number;
+}
 
 function ActivityMarker({
   activity,
@@ -351,7 +359,29 @@ export default function HomeScreen({ navigation }: Props) {
     LocationManager.requestPermissions();
   }, []);
   const [category, setCategory] = useState<CategoryId>('all');
+  const chipsRef = useRef<ScrollViewInstance>(null);
+  const chipsViewport = useRef(0);
+  const chipsContent = useRef(0);
+  const chipLayouts = useRef<Partial<Record<CategoryId, ChipLayout>>>({});
+
+  const selectCategory = (id: CategoryId) => {
+    setCategory(id);
+    const chip = chipLayouts.current[id];
+    if (!chip) {
+      return;
+    }
+    // Center the chip, so tapping one near an edge reveals its neighbours.
+    const maxX = Math.max(chipsContent.current - chipsViewport.current, 0);
+    const x = chip.x + chip.width / 2 - chipsViewport.current / 2;
+    chipsRef.current?.scrollTo({
+      x: Math.min(Math.max(x, 0), maxX),
+      animated: true,
+    });
+  };
   const [query, setQuery] = useState('');
+  const searchRef = useRef<TextInputInstance>(null);
+  // Set by the input's own touch, which bubbles before the screen's handler.
+  const touchingSearch = useRef(false);
 
   const activities = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -444,7 +474,16 @@ export default function HomeScreen({ navigation }: Props) {
   }, [overlayHeight, collapsedHeight]);
 
   return (
-    <View style={styles.safe}>
+    <View
+      style={styles.safe}
+      onTouchStart={() => {
+        if (touchingSearch.current) {
+          touchingSearch.current = false;
+        } else if (searchRef.current?.isFocused()) {
+          Keyboard.dismiss();
+        }
+      }}
+    >
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.brand}>
           <Image
@@ -544,8 +583,9 @@ export default function HomeScreen({ navigation }: Props) {
             >
               <View style={styles.markerWrap}>
                 <View style={styles.cluster}>
+                  <Text style={styles.clusterEmoji}>⚽</Text>
                   <Text style={styles.clusterText}>
-                    ⚽ {t('home.spots', { count: FOOTBALL_CLUSTER.count })}
+                    {t('home.spots', { count: FOOTBALL_CLUSTER.count })}
                   </Text>
                 </View>
                 <View style={[styles.markerTip, styles.clusterTip]} />
@@ -580,6 +620,10 @@ export default function HomeScreen({ navigation }: Props) {
             <Icon name="search" size={ms(20)} color={mapColors.textSecondary} />
             <View style={styles.searchBody}>
               <TextInput
+                ref={searchRef}
+                onTouchStart={() => {
+                  touchingSearch.current = true;
+                }}
                 value={query}
                 onChangeText={setQuery}
                 placeholder={t('home.searchPlaceholder')}
@@ -624,16 +668,27 @@ export default function HomeScreen({ navigation }: Props) {
           </LiquidGlassView>
 
           <ScrollView
+            ref={chipsRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.chips}
             style={styles.chipsScroll}
+            onLayout={event => {
+              chipsViewport.current = event.nativeEvent.layout.width;
+            }}
+            onContentSizeChange={width => {
+              chipsContent.current = width;
+            }}
           >
             {CATEGORIES.map(item => {
               const selected = item.id === category;
               return (
                 <LiquidGlassView
                   key={item.id}
+                  onLayout={event => {
+                    const { x, width } = event.nativeEvent.layout;
+                    chipLayouts.current[item.id] = { x, width };
+                  }}
                   interactive
                   tintColor={selected ? colors.primary : undefined}
                   colorScheme={hudScheme}
@@ -646,7 +701,7 @@ export default function HomeScreen({ navigation }: Props) {
                   ]}
                 >
                   <Pressable
-                    onPress={() => setCategory(item.id)}
+                    onPress={() => selectCategory(item.id)}
                     style={styles.chipPressable}
                     accessibilityRole="button"
                     accessibilityState={{ selected }}

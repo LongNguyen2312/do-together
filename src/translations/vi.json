@@ -154,5 +154,56 @@
     "discover": "Khám phá",
     "activities": "Hoạt động",
     "profile": "Cá nhân"
+  },
+  "imFree": {
+    "title": "Phát tín hiệu Mình rảnh",
+    "heading": "Bạn muốn làm gì?",
+    "subheading": "Tìm những người gần bạn đang muốn làm cùng một việc ngay lúc này.",
+    "activities": {
+      "running": "Chạy bộ",
+      "coffee": "Cà phê",
+      "food": "Ăn uống",
+      "football": "Bóng đá",
+      "badminton": "Cầu lông",
+      "gaming": "Chơi game",
+      "movie": "Xem phim",
+      "walking": "Đi bộ",
+      "photography": "Chụp ảnh",
+      "coworking": "Làm việc chung",
+      "language": "Ngoại ngữ",
+      "other": "Khác"
+    },
+    "when": "Khi nào?",
+    "instantMatch": "Ghép ngay",
+    "whenOptions": {
+      "now": "Ngay bây giờ",
+      "in30": "30 phút nữa",
+      "tonight": "Tối nay (19:00)"
+    },
+    "pickTime": "Chọn giờ",
+    "pickTimeTitle": "Chọn thời gian",
+    "today": "Hôm nay",
+    "tomorrow": "Ngày mai",
+    "customTime": "{{day}} {{time}}",
+    "pastTime": "Thời gian này đã qua",
+    "duration": "Thời lượng",
+    "durations": {
+      "30m": "30 phút",
+      "1h": "1 giờ",
+      "2h": "2 giờ",
+      "3h": "3+ giờ"
+    },
+    "note": "Ghi chú thêm",
+    "optional": "Không bắt buộc",
+    "notePlaceholder": "Ví dụ: Cần tìm bạn chạy quanh Hồ Tây khoảng 5km, pace 6:00...",
+    "noteCounter": "{{count}}/{{max}}",
+    "radius": "Bán kính tìm kiếm",
+    "km": "{{value}} km",
+    "activeNearby_one": "~{{count}} người đang rảnh gần bạn",
+    "activeNearby_other": "~{{count}} người đang rảnh gần bạn",
+    "findBuddies": "Tìm bạn {{activity}} gần đây",
+    "broadcasting": "Đang phát tín hiệu...",
+    "broadcastTitle": "Đã phát tín hiệu!",
+    "broadcastMessage": "Chúng tôi sẽ báo ngay khi có người gần bạn muốn {{activity}} cùng."
   }
 }

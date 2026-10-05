@@ -8,6 +8,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import MainTabNavigator from '@/navigators/MainTabNavigator';
 import ForgotPasswordScreen from '@/screens/ForgotPassword';
+import ImFreeScreen from '@/screens/ImFree';
 import LoginScreen from '@/screens/Login';
 import OnboardingScreen from '@/screens/Onboarding';
 import SignUpScreen from '@/screens/SignUp';
@@ -42,6 +43,13 @@ export default function RootNavigator() {
     };
   }, [colors, isDark]);
 
+  const mainScreens = (
+    <Stack.Group>
+      <Stack.Screen name="Main" component={MainTabNavigator} />
+      <Stack.Screen name="ImFree" component={ImFreeScreen} />
+    </Stack.Group>
+  );
+
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
@@ -51,7 +59,7 @@ export default function RootNavigator() {
         }}
       >
         {SKIP_TO_MAIN ? (
-          <Stack.Screen name="Main" component={MainTabNavigator} />
+          mainScreens
         ) : !hasCompletedOnboarding ? (
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : !isAuthenticated ? (
@@ -64,7 +72,7 @@ export default function RootNavigator() {
             />
           </Stack.Group>
         ) : (
-          <Stack.Screen name="Main" component={MainTabNavigator} />
+          mainScreens
         )}
       </Stack.Navigator>
     </NavigationContainer>
