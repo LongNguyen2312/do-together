@@ -18,10 +18,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Icon as PhosphorIcon } from 'phosphor-react-native';
+import { ChatCircleDotsIcon } from 'phosphor-react-native/src/icons/ChatCircleDots';
 import { CompassIcon } from 'phosphor-react-native/src/icons/Compass';
 import { HouseIcon } from 'phosphor-react-native/src/icons/House';
 import { PlusIcon } from 'phosphor-react-native/src/icons/Plus';
-import { PulseIcon } from 'phosphor-react-native/src/icons/Pulse';
 import { UserCircleIcon } from 'phosphor-react-native/src/icons/UserCircle';
 import { ms } from 'react-native-size-matters';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -70,7 +70,7 @@ const DRAG_OFFSET = 6;
 const TAB_ICONS: Record<keyof MainTabParamList, PhosphorIcon> = {
   Home: HouseIcon,
   Discover: CompassIcon,
-  Activities: PulseIcon,
+  Chats: ChatCircleDotsIcon,
   Profile: UserCircleIcon,
 };
 

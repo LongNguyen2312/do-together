@@ -8,6 +8,7 @@ import {
   SafeAreaProvider,
 } from 'react-native-safe-area-context';
 
+import { ConfirmProvider } from '@/components/ConfirmDialog';
 import { useI18nSync } from '@/hooks/useI18nSync';
 import RootNavigator from '@/navigators/RootNavigator';
 import SplashScreen, { SPLASH_BACKGROUND } from '@/screens/Splash';
@@ -51,7 +52,11 @@ function BootGate() {
           setBootstrapped(true);
         }}
       >
-        <ThemeProvider>{bootstrapped ? <AppShell /> : null}</ThemeProvider>
+        <ThemeProvider>
+          <ConfirmProvider>
+            {bootstrapped ? <AppShell /> : null}
+          </ConfirmProvider>
+        </ThemeProvider>
       </PersistGate>
 
       {splashGone ? null : (

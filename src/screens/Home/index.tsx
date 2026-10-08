@@ -32,14 +32,19 @@ import {
   useCurrentPosition,
 } from '@maplibre/maplibre-react-native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type {
+  NativeStackNavigationProp,
+  NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import Reanimated, {
   Extrapolation,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ms } from 'react-native-size-matters';
 
@@ -47,15 +52,18 @@ import {
   isLiquidGlassSupported,
   LiquidGlassView,
 } from '@callstack/liquid-glass';
+import AppHeader from '@/components/AppHeader';
 import BottomSheet from '@/components/BottomSheet';
 import { useTabBarInset } from '@/components/LiquidTabBar';
 import PulseDot from '@/components/PulseDot';
 import { useCompassHeading } from '@/hooks/useCompassHeading';
+import { useJoinActivity } from '@/hooks/useJoinActivity';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { joinActivity } from '@/store/slices/activitySlice';
 import { setMapStyle } from '@/store/slices/appSlice';
 import { darkColors, lightColors, useTheme } from '@/theme';
 import type { MapStyleId } from '@/types/map';
-import type { MainTabParamList } from '@/types/navigation';
+import type { MainTabParamList, RootStackParamList } from '@/types/navigation';
 import {
   defaultMapStyle,
   isDarkMapStyle,
@@ -64,13 +72,26 @@ import {
 
 import {
   ACTIVITIES,
-  CATEGORIES,
-  FOOTBALL_CLUSTER,
+  activityStatus,
+  CATEGORY_EMOJI,
+  getUser,
+  isBrowsable,
+  isJoined,
+} from '@/services/mockData';
+import type { Activity } from '@/types/activity';
+import { clockIn, formatDistance } from '@/utils/format';
+
+import {
+  CATEGORY_IDS,
   boundsOf,
-  type Activity,
+  centerOf,
+  createClusterer,
+  pixelOffset,
   type CategoryId,
+  type MarkerEntry,
 } from './data';
 import MapStylePicker from './MapStylePicker';
+import MarkerAppear from './MarkerAppear';
 import UserPuck from './UserPuck';
 import { createStyles, type HomeStyles } from './styles';
 
@@ -85,23 +106,23 @@ const FIT_PADDING = {
 const SHEET_GAP = ms(6);
 const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 const LOCATE_ZOOM = 15.5;
+const FOCUS_ZOOM = 16.5;
+/** Until the first region event reports the real zoom. */
+const INITIAL_ZOOM = 13;
+const MAX_CLUSTER_EMOJIS = 3;
+/** Slightly longer than the native stack's pop animation. */
+const FOCUS_FALLBACK_MS = 600;
 /** m/s; below this the GPS course is too noisy to use as a heading. */
 const MIN_COURSE_SPEED = 0.5;
 const ROTATION_RANGE = 36000;
 /** Roughly 5 km; farther positions would zoom the overview out too much. */
 const NEARBY_DEGREES = 0.05;
-const SPOTS: LngLat[] = [
-  FOOTBALL_CLUSTER.coordinate,
-  ...ACTIVITIES.map(activity => activity.coordinate),
-];
+/** Completed and full activities never appear on Home. */
+const BROWSABLE = ACTIVITIES.filter(isBrowsable);
+const SPOTS: LngLat[] = BROWSABLE.map(activity => activity.coordinate);
 const SPOTS_BOUNDS = boundsOf(SPOTS);
-const SPOTS_CENTER: LngLat = [
-  (SPOTS_BOUNDS[0] + SPOTS_BOUNDS[2]) / 2,
-  (SPOTS_BOUNDS[1] + SPOTS_BOUNDS[3]) / 2,
-];
-const CATEGORY_EMOJI = Object.fromEntries(
-  CATEGORIES.map(c => [c.id, c.emoji]),
-) as Record<CategoryId, string | undefined>;
+const SPOTS_CENTER = centerOf(SPOTS);
+const MAX_AVATARS = 3;
 
 interface ChipLayout {
   x: number;
@@ -110,22 +131,34 @@ interface ChipLayout {
 
 function ActivityMarker({
   activity,
+  joined,
+  focused,
   styles,
 }: {
   activity: Activity;
+  joined: boolean;
+  focused: boolean;
   styles: HomeStyles;
 }) {
+  const { t } = useTranslation();
+  const live = activityStatus(activity) === 'ongoing';
+  const people = activity.members.length;
+
   return (
-    <View style={styles.markerWrap}>
-      <View style={styles.markerPill}>
+    <View style={[styles.markerWrap, focused && styles.markerFocused]}>
+      <View
+        style={[
+          styles.markerPill,
+          joined && styles.markerPillJoined,
+          focused && styles.markerPillFocused,
+        ]}
+      >
         <View>
-          <Image source={activity.marker.avatar} style={styles.markerAvatar} />
-          <View
-            style={[
-              styles.markerEmoji,
-              activity.live && styles.markerEmojiLive,
-            ]}
-          >
+          <Image
+            source={getUser(activity.hostId).avatar}
+            style={styles.markerAvatar}
+          />
+          <View style={[styles.markerEmoji, live && styles.markerEmojiLive]}>
             <Text style={styles.markerEmojiText}>
               {CATEGORY_EMOJI[activity.category]}
             </Text>
@@ -135,60 +168,90 @@ function ActivityMarker({
           <Text
             style={[
               styles.markerStatus,
-              activity.live ? styles.liveText : styles.soonText,
+              live ? styles.liveText : styles.soonText,
             ]}
           >
-            {activity.marker.status}
+            {live && joined
+              ? t('home.markerJoinedNow', { people })
+              : live
+              ? t('home.markerNow', { people })
+              : t('home.markerSoon', {
+                  minutes: activity.startsInMinutes,
+                  people,
+                })}
           </Text>
           <Text style={styles.markerTitle} numberOfLines={1}>
-            {activity.marker.title}
+            {activity.markerTitle}
           </Text>
         </View>
       </View>
-      <View style={styles.markerTip} />
+      <View style={[styles.markerTip, focused && styles.markerTipFocused]} />
     </View>
   );
 }
 
 const ActivityCard = memo(function ActivityCardView({
   activity,
+  joined,
   styles,
   onPress,
+  onJoin,
 }: {
   activity: Activity;
+  joined: boolean;
   styles: HomeStyles;
-  onPress: () => void;
+  onPress: (activityId: string) => void;
+  onJoin: (activityId: string) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const joinable = !activity.live;
+  const live = activityStatus(activity) === 'ongoing';
+  const host = getUser(activity.hostId);
+  const memberCount = activity.members.length + (joined ? 1 : 0);
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      onPress={() => onPress(activity.id)}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      accessibilityRole="button"
+      accessibilityLabel={activity.title}
+    >
       <View style={styles.cardTop}>
         <View style={styles.cardHost}>
-          <Image source={activity.hostAvatar} style={styles.hostAvatar} />
+          <Image source={host.avatar} style={styles.hostAvatar} />
           <View style={styles.flexShrink}>
-            <Text style={styles.hostName}>{activity.host}</Text>
+            <Text style={styles.hostName}>{host.name}</Text>
             <View style={styles.whenRow}>
               <Icon
-                name={activity.live ? 'cafe-outline' : 'time-outline'}
+                name={live ? 'pulse-outline' : 'time-outline'}
                 size={ms(13)}
                 color={colors.textSecondary}
               />
               <Text
                 style={[
                   styles.whenText,
-                  activity.live ? styles.liveText : styles.soonText,
+                  live ? styles.liveText : styles.soonText,
                 ]}
               >
-                {activity.when}
+                {live
+                  ? t('home.whenNow', {
+                      time: clockIn(
+                        activity.startsInMinutes + activity.durationMinutes,
+                      ),
+                    })
+                  : t('home.whenSoon', {
+                      time: clockIn(activity.startsInMinutes),
+                      minutes: activity.startsInMinutes,
+                    })}
               </Text>
             </View>
           </View>
         </View>
-        <View style={[styles.tag, joinable && styles.tagHighlight]}>
-          <Text style={[styles.tagText, joinable && styles.tagTextHighlight]}>
+        <View style={[styles.tag, !joined && styles.tagHighlight]}>
+          <Text style={styles.tagEmoji}>
+            {CATEGORY_EMOJI[activity.category]}
+          </Text>
+          <Text style={[styles.tagText, !joined && styles.tagTextHighlight]}>
             {activity.tag}
           </Text>
         </View>
@@ -204,10 +267,10 @@ const ActivityCard = memo(function ActivityCardView({
       <View style={styles.cardBottom}>
         <View style={styles.cardMeta}>
           <View style={styles.avatarStack}>
-            {activity.participants.map((source, i) => (
+            {activity.members.slice(0, MAX_AVATARS).map((member, i) => (
               <Image
-                key={i}
-                source={source}
+                key={member.userId}
+                source={getUser(member.userId).avatar}
                 style={[styles.participant, i > 0 && styles.participantOverlap]}
               />
             ))}
@@ -216,51 +279,79 @@ const ActivityCard = memo(function ActivityCardView({
             <Text style={styles.metaText} numberOfLines={1}>
               {activity.capacity
                 ? t('home.joinedOf', {
-                    count: activity.joined,
+                    count: memberCount,
                     capacity: activity.capacity,
                   })
-                : t('home.joined', { count: activity.joined })}
+                : t('home.joined', { count: memberCount })}
             </Text>
-            {activity.distance ? (
-              <View style={styles.distanceRow}>
-                <Icon
-                  name="location-outline"
-                  size={ms(11)}
-                  color={colors.textSecondary}
-                />
-                <Text style={styles.distanceText} numberOfLines={1}>
-                  {activity.distance}
-                </Text>
-              </View>
-            ) : null}
+            <View style={styles.distanceRow}>
+              <Icon
+                name="location-outline"
+                size={ms(11)}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.distanceText} numberOfLines={1}>
+                {t('home.distanceAway', {
+                  distance: formatDistance(activity.distanceKm),
+                })}
+              </Text>
+            </View>
           </View>
         </View>
-        <Pressable
-          onPress={onPress}
-          style={({ pressed }) => [
-            joinable ? styles.joinButton : styles.detailsButton,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-        >
-          <Text style={joinable ? styles.joinText : styles.detailsText}>
-            {joinable ? t('home.join') : t('home.details')}
-          </Text>
-        </Pressable>
+        {joined ? (
+          <Pressable
+            onPress={() => onPress(activity.id)}
+            style={({ pressed }) => [
+              styles.joinedButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+          >
+            {live ? (
+              <PulseDot color={colors.white} size={ms(6)} />
+            ) : (
+              <Icon
+                name="checkmark-circle"
+                size={ms(14)}
+                color={colors.white}
+              />
+            )}
+            <Text style={styles.joinedText}>
+              {live ? t('home.joinedLiveBadge') : t('home.joinedBadge')}
+            </Text>
+          </Pressable>
+        ) : live ? (
+          <View style={styles.ongoingPill}>
+            <PulseDot color={colors.success} size={ms(6)} />
+            <Text style={styles.ongoingText}>{t('home.ongoingBadge')}</Text>
+          </View>
+        ) : (
+          <Pressable
+            onPress={() => onJoin(activity.id)}
+            style={({ pressed }) => [
+              styles.joinButton,
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.joinText}>{t('home.join')}</Text>
+          </Pressable>
+        )}
       </View>
-    </View>
+    </Pressable>
   );
 });
 
-type Props = BottomTabScreenProps<MainTabParamList, 'Home'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'Home'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
-export default function HomeScreen({ navigation }: Props) {
+export default function HomeScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const tabBarInset = useTabBarInset();
-  const insets = useSafeAreaInsets();
-
   const [bodyHeight, setBodyHeight] = useState(0);
   const [overlayHeight, setOverlayHeight] = useState(0);
   const expandedHeight = Math.max(bodyHeight - overlayHeight - SHEET_GAP, 0);
@@ -299,6 +390,7 @@ export default function HomeScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
   const mapStyle =
     useAppSelector(state => state.app.mapStyle) ?? defaultMapStyle(isDark);
+  const joinedIds = useAppSelector(state => state.activity.joinedIds);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const mapDark = isDarkMapStyle(mapStyle);
   const mapColors = mapDark ? darkColors : lightColors;
@@ -359,6 +451,8 @@ export default function HomeScreen({ navigation }: Props) {
     LocationManager.requestPermissions();
   }, []);
   const [category, setCategory] = useState<CategoryId>('all');
+  /** Activity opened from Activity Detail's map; highlighted until another chip is picked. */
+  const [focusedId, setFocusedId] = useState<string | null>(null);
   const chipsRef = useRef<ScrollViewInstance>(null);
   const chipsViewport = useRef(0);
   const chipsContent = useRef(0);
@@ -366,6 +460,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   const selectCategory = (id: CategoryId) => {
     setCategory(id);
+    setFocusedId(null);
     const chip = chipLayouts.current[id];
     if (!chip) {
       return;
@@ -385,17 +480,88 @@ export default function HomeScreen({ navigation }: Props) {
 
   const activities = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return ACTIVITIES.filter(
+    return BROWSABLE.filter(
       activity =>
         (category === 'all' || activity.category === category) &&
         (!needle || activity.title.toLowerCase().includes(needle)),
     );
   }, [category, query]);
-  const showCluster = category === 'all' || category === 'football';
+  /** Whole zoom level: clusters only change when the map crosses a level. */
+  const [zoomLevel, setZoomLevel] = useState(INITIAL_ZOOM);
+  // The focused activity always keeps its own marker.
+  const focusedActivity = activities.find(
+    activity => activity.id === focusedId,
+  );
+  const clusterer = useMemo(
+    () =>
+      createClusterer(activities.filter(activity => activity.id !== focusedId)),
+    [activities, focusedId],
+  );
+  const markerEntries = useMemo<MarkerEntry<Activity>[]>(
+    () => [
+      ...clusterer.entriesAt(zoomLevel),
+      ...(focusedActivity
+        ? [{ kind: 'single' as const, item: focusedActivity }]
+        : []),
+    ],
+    [clusterer, zoomLevel, focusedActivity],
+  );
+
+  // Markers that just split out of a cluster glide out from where that cluster was.
+  const exactZoom = useRef(INITIAL_ZOOM);
+  const previousClusterOf = useRef(new Map<string, LngLat>());
+  const appearOrigins = useMemo(() => {
+    const origins = new Map<string, { x: number; y: number }>();
+    for (const entry of markerEntries) {
+      const clusterCenter =
+        entry.kind === 'single'
+          ? previousClusterOf.current.get(entry.item.id)
+          : undefined;
+      if (entry.kind === 'single' && clusterCenter) {
+        origins.set(
+          entry.item.id,
+          pixelOffset(clusterCenter, entry.item.coordinate, exactZoom.current),
+        );
+      }
+    }
+    return origins;
+  }, [markerEntries]);
+  useEffect(() => {
+    const next = new Map<string, LngLat>();
+    for (const entry of markerEntries) {
+      if (entry.kind === 'cluster') {
+        entry.items.forEach(item => next.set(item.id, entry.center));
+      }
+    }
+    previousClusterOf.current = next;
+  }, [markerEntries]);
+
+  const expandCluster = (clusterId: number, center: LngLat) => {
+    setTracking(false);
+    cameraRef.current?.flyTo({
+      center,
+      zoom: clusterer.expansionZoom(clusterId),
+      padding: { top: overlayHeight, bottom: collapsedHeight },
+      duration: 600,
+    });
+  };
 
   const showComingSoon = useCallback(() => {
     Alert.alert(t('auth.comingSoonTitle'), t('auth.comingSoonMessage'));
   }, [t]);
+
+  const openActivity = useCallback(
+    (activityId: string) =>
+      navigation.navigate('ActivityDetail', { activityId }),
+    [navigation],
+  );
+
+  const requestJoin = useJoinActivity();
+  const join = useCallback(
+    (activityId: string) =>
+      requestJoin(activityId, () => dispatch(joinActivity(activityId))),
+    [requestJoin, dispatch],
+  );
 
   const showSpots = useCallback(() => {
     setTracking(false);
@@ -465,6 +631,51 @@ export default function HomeScreen({ navigation }: Props) {
     });
   }, [tracking, userLngLat, heading, overlayHeight, collapsedHeight]);
 
+  const focusKey = route.params?.focusKey;
+  useEffect(() => {
+    const target = BROWSABLE.find(
+      activity => activity.id === route.params?.focusActivityId,
+    );
+    if (!focusKey || !target) {
+      return;
+    }
+    if (category !== 'all' && category !== target.category) {
+      selectCategory('all');
+    }
+    if (!target.title.toLowerCase().includes(query.trim().toLowerCase())) {
+      setQuery('');
+    }
+    setFocusedId(target.id);
+    setTracking(false);
+    sheetY.value = withTiming(collapsedOffset, { duration: 250 });
+    // The map ignores camera moves while the detail screen is still popping off,
+    // so wait for the stack transition (or a fallback when there is none).
+    let done = false;
+    const flyToTarget = () => {
+      if (done) {
+        return;
+      }
+      done = true;
+      cameraRef.current?.flyTo({
+        center: target.coordinate,
+        zoom: FOCUS_ZOOM,
+        padding: { top: overlayHeight, bottom: collapsedHeight },
+        duration: 900,
+      });
+    };
+    const unsubscribe = navigation
+      .getParent<NativeStackNavigationProp<RootStackParamList>>()
+      ?.addListener('transitionEnd', flyToTarget);
+    const timer = setTimeout(flyToTarget, FOCUS_FALLBACK_MS);
+    return () => {
+      done = true;
+      unsubscribe?.();
+      clearTimeout(timer);
+    };
+    // Run once per focus request; the rest is read at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey]);
+
   useEffect(() => {
     if (overlayHeight && collapsedHeight) {
       showSpots();
@@ -484,55 +695,11 @@ export default function HomeScreen({ navigation }: Props) {
         }
       }}
     >
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <View style={styles.brand}>
-          <Image
-            source={require('@/assets/images/logo-mark.png')}
-            style={styles.brandLogo}
-            tintColor={colors.primary}
-            resizeMode="contain"
-          />
-          <Text style={styles.brandName}>{t('common.appName')}</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={showSpots}
-            hitSlop={6}
-            style={styles.headerButton}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.myLocation')}
-          >
-            <Icon
-              name="location-outline"
-              size={ms(22)}
-              color={colors.textSecondary}
-            />
-          </Pressable>
-          <Pressable
-            onPress={showComingSoon}
-            hitSlop={6}
-            style={styles.headerButton}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.notifications')}
-          >
-            <Icon
-              name="notifications-outline"
-              size={ms(22)}
-              color={colors.textSecondary}
-            />
-            <View style={styles.notificationDot} />
-          </Pressable>
-          <Pressable
-            onPress={() => navigation.navigate('Profile')}
-            hitSlop={6}
-            style={styles.profileButton}
-            accessibilityRole="button"
-            accessibilityLabel={t('tabs.profile')}
-          >
-            <Icon name="person" size={ms(13)} color={colors.white} />
-          </Pressable>
-        </View>
-      </View>
+      <AppHeader
+        onLocationPress={showSpots}
+        onNotificationsPress={showComingSoon}
+        onProfilePress={() => navigation.navigate('Profile')}
+      />
 
       <View
         style={styles.body}
@@ -555,43 +722,68 @@ export default function HomeScreen({ navigation }: Props) {
           onRegionIsChanging={event =>
             bearingAnim.setValue(event.nativeEvent.bearing)
           }
-          onRegionDidChange={event =>
-            bearingAnim.setValue(event.nativeEvent.bearing)
-          }
+          onRegionDidChange={event => {
+            bearingAnim.setValue(event.nativeEvent.bearing);
+            exactZoom.current = event.nativeEvent.zoom;
+            setZoomLevel(Math.floor(event.nativeEvent.zoom));
+          }}
         >
           <Camera
             ref={cameraRef}
             initialViewState={{ bounds: SPOTS_BOUNDS, padding: FIT_PADDING }}
           />
-          {activities.map(activity => (
-            <Marker
-              key={activity.id}
-              id={activity.id}
-              lngLat={activity.coordinate}
-              anchor="bottom"
-              onPress={showComingSoon}
-            >
-              <ActivityMarker activity={activity} styles={styles} />
-            </Marker>
-          ))}
-          {showCluster ? (
-            <Marker
-              id="football-cluster"
-              lngLat={FOOTBALL_CLUSTER.coordinate}
-              anchor="bottom"
-              onPress={showComingSoon}
-            >
-              <View style={styles.markerWrap}>
-                <View style={styles.cluster}>
-                  <Text style={styles.clusterEmoji}>⚽</Text>
-                  <Text style={styles.clusterText}>
-                    {t('home.spots', { count: FOOTBALL_CLUSTER.count })}
-                  </Text>
-                </View>
-                <View style={[styles.markerTip, styles.clusterTip]} />
-              </View>
-            </Marker>
-          ) : null}
+          {markerEntries.map(entry => {
+            if (entry.kind === 'single') {
+              const activity = entry.item;
+              return (
+                <Marker
+                  key={activity.id}
+                  id={activity.id}
+                  lngLat={activity.coordinate}
+                  anchor="bottom"
+                  onPress={() => {
+                    setFocusedId(activity.id);
+                    openActivity(activity.id);
+                  }}
+                >
+                  <MarkerAppear from={appearOrigins.get(activity.id)}>
+                    <ActivityMarker
+                      activity={activity}
+                      joined={isJoined(activity, joinedIds)}
+                      focused={activity.id === focusedId}
+                      styles={styles}
+                    />
+                  </MarkerAppear>
+                </Marker>
+              );
+            }
+            const emojis = [
+              ...new Set(
+                entry.items.map(item => CATEGORY_EMOJI[item.category]),
+              ),
+            ].slice(0, MAX_CLUSTER_EMOJIS);
+            return (
+              <Marker
+                key={`cluster-${entry.clusterId}`}
+                id={`cluster-${entry.clusterId}`}
+                lngLat={entry.center}
+                anchor="bottom"
+                onPress={() => expandCluster(entry.clusterId, entry.center)}
+              >
+                <MarkerAppear>
+                  <View style={styles.markerWrap}>
+                    <View style={styles.cluster}>
+                      <Text style={styles.clusterEmoji}>{emojis.join('')}</Text>
+                      <Text style={styles.clusterText}>
+                        {t('home.spots', { count: entry.items.length })}
+                      </Text>
+                    </View>
+                    <View style={[styles.markerTip, styles.clusterTip]} />
+                  </View>
+                </MarkerAppear>
+              </Marker>
+            );
+          })}
           {userLngLat ? (
             <Marker id="user-location" lngLat={userLngLat} anchor="center">
               <UserPuck
@@ -680,14 +872,15 @@ export default function HomeScreen({ navigation }: Props) {
               chipsContent.current = width;
             }}
           >
-            {CATEGORIES.map(item => {
-              const selected = item.id === category;
+            {CATEGORY_IDS.map(id => {
+              const selected = id === category;
+              const emoji = id === 'all' ? undefined : CATEGORY_EMOJI[id];
               return (
                 <LiquidGlassView
-                  key={item.id}
+                  key={id}
                   onLayout={event => {
                     const { x, width } = event.nativeEvent.layout;
-                    chipLayouts.current[item.id] = { x, width };
+                    chipLayouts.current[id] = { x, width };
                   }}
                   interactive
                   tintColor={selected ? colors.primary : undefined}
@@ -701,13 +894,13 @@ export default function HomeScreen({ navigation }: Props) {
                   ]}
                 >
                   <Pressable
-                    onPress={() => selectCategory(item.id)}
+                    onPress={() => selectCategory(id)}
                     style={styles.chipPressable}
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                   >
-                    {item.emoji ? (
-                      <Text style={styles.chipEmoji}>{item.emoji}</Text>
+                    {emoji ? (
+                      <Text style={styles.chipEmoji}>{emoji}</Text>
                     ) : null}
                     <Text
                       style={[
@@ -716,9 +909,9 @@ export default function HomeScreen({ navigation }: Props) {
                         selected && styles.chipTextSelected,
                       ]}
                     >
-                      {t(`home.categories.${item.id}`)}
+                      {t(`home.categories.${id}`)}
                     </Text>
-                    {selected && item.id === 'all' ? (
+                    {selected && id === 'all' ? (
                       <View style={styles.chipDot} />
                     ) : null}
                   </Pressable>
@@ -814,7 +1007,7 @@ export default function HomeScreen({ navigation }: Props) {
             header={
               <View style={styles.sheetHeader}>
                 <View style={styles.sheetTitleRow}>
-                  <PulseDot color={colors.success} size={ms(10)} />
+                  <PulseDot color={colors.primary} size={ms(10)} />
                   <Text style={styles.sheetTitle}>
                     {t('home.happeningNow')}
                   </Text>
@@ -832,8 +1025,10 @@ export default function HomeScreen({ navigation }: Props) {
                 <ActivityCard
                   key={activity.id}
                   activity={activity}
+                  joined={isJoined(activity, joinedIds)}
                   styles={styles}
-                  onPress={showComingSoon}
+                  onPress={openActivity}
+                  onJoin={join}
                 />
               ))
             ) : (

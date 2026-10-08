@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
+  Image,
   Keyboard,
   Platform,
   Pressable,
@@ -21,21 +22,28 @@ import { ms } from 'react-native-size-matters';
 import PrimaryButton from '@/components/PrimaryButton';
 import PulseDot from '@/components/PulseDot';
 import RangeSlider from '@/components/RangeSlider';
+import { freeUsersWithin } from '@/services/mockData';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  removeCustomActivity,
+  saveCustomActivity,
+} from '@/store/slices/broadcastSlice';
 import { useTheme } from '@/theme';
 import type {
   BroadcastActivityId,
   BroadcastDuration,
   BroadcastTime,
   BroadcastWhen,
+  CustomActivity,
 } from '@/types/broadcast';
 import type { RootStackParamList } from '@/types/navigation';
 
+import CustomActivitySheet from './CustomActivitySheet';
 import {
   ACTIVITIES,
   DURATIONS,
-  estimateNearby,
   formatClock,
-  NEARBY_PREVIEW,
+  NEARBY_PREVIEW_COUNT,
   NOTE_MAX_LENGTH,
   RADIUS_KM,
   WHEN_OPTIONS,
@@ -46,6 +54,8 @@ import TimePickerSheet from './TimePickerSheet';
 /** Simulated broadcast round-trip until the API exists. */
 const BROADCAST_MS = 1100;
 
+const PRESET_ACTIVITIES = ACTIVITIES.filter(item => item.id !== 'other');
+
 type Props = NativeStackScreenProps<RootStackParamList, 'ImFree'>;
 
 export default function ImFreeScreen({ navigation }: Props) {
@@ -54,7 +64,15 @@ export default function ImFreeScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
 
+  const dispatch = useAppDispatch();
+  const customActivities = useAppSelector(
+    state => state.broadcast.customActivities,
+  );
+
+  /** 'other' means one of the saved custom activities (customId) is picked. */
   const [activity, setActivity] = useState<BroadcastActivityId>('running');
+  const [customId, setCustomId] = useState<string | null>(null);
+  const [customSheetOpen, setCustomSheetOpen] = useState(false);
   const [when, setWhen] = useState<BroadcastWhen>('now');
   const [duration, setDuration] = useState<BroadcastDuration>('1h');
   const [note, setNote] = useState('');
@@ -84,8 +102,48 @@ export default function ImFreeScreen({ navigation }: Props) {
     };
   }, []);
 
-  const nearby = estimateNearby(radius);
-  const activityLabel = t(`imFree.activities.${activity}`);
+  const nearbyUsers = freeUsersWithin(
+    radius,
+    activity === 'other' ? undefined : activity,
+  );
+  const nearby = nearbyUsers.length;
+  const nearbyPreview = nearbyUsers.slice(0, NEARBY_PREVIEW_COUNT);
+  const selectedCustom =
+    activity === 'other'
+      ? customActivities.find(item => item.id === customId)
+      : undefined;
+  const activityLabel = selectedCustom
+    ? selectedCustom.name
+    : t(`imFree.activities.${activity}`);
+  const canBroadcast = activity !== 'other' || !!selectedCustom;
+
+  const onSaveCustom = (item: CustomActivity) => {
+    dispatch(saveCustomActivity(item));
+    setActivity('other');
+    setCustomId(item.id);
+    setCustomSheetOpen(false);
+  };
+
+  const confirmRemove = (item: CustomActivity) => {
+    Alert.alert(
+      t('imFree.custom.removeTitle'),
+      t('imFree.custom.removeMessage', { name: item.name }),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('imFree.custom.remove'),
+          style: 'destructive',
+          onPress: () => {
+            dispatch(removeCustomActivity(item.id));
+            if (item.id === customId) {
+              setActivity('running');
+              setCustomId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   const onBroadcast = () => {
     Keyboard.dismiss();
@@ -99,12 +157,6 @@ export default function ImFreeScreen({ navigation }: Props) {
       );
     }, BROADCAST_MS);
   };
-
-  const avatarColors = [
-    { backgroundColor: colors.surfaceHigh, color: colors.text },
-    { backgroundColor: colors.mint, color: colors.success },
-    { backgroundColor: colors.primarySoft, color: colors.primaryDark },
-  ];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -137,48 +189,67 @@ export default function ImFreeScreen({ navigation }: Props) {
           <Text style={styles.subheading}>{t('imFree.subheading')}</Text>
 
           <View style={styles.grid}>
-            {ACTIVITIES.map(item => {
-              const selected = item.id === activity;
-              return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => setActivity(item.id)}
-                  style={({ pressed }) => [
-                    styles.tile,
-                    selected && styles.tileSelected,
-                    pressed && styles.pressed,
-                  ]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                >
-                  {selected ? (
-                    <View style={styles.tileCheck}>
-                      <Icon
-                        name="checkmark"
-                        size={ms(10)}
-                        color={colors.white}
-                      />
-                    </View>
-                  ) : null}
-                  {item.emoji ? (
-                    <Text style={styles.tileEmoji}>{item.emoji}</Text>
-                  ) : (
-                    <Icon
-                      name="add-circle-outline"
-                      size={ms(24)}
-                      color={colors.primary}
+            {PRESET_ACTIVITIES.map(item => (
+              <ActivityTile
+                key={item.id}
+                selected={item.id === activity}
+                label={t(`imFree.activities.${item.id}`)}
+                art={<Text style={styles.tileEmoji}>{item.emoji}</Text>}
+                onPress={() => {
+                  setActivity(item.id);
+                  setCustomId(null);
+                }}
+                styles={styles}
+                checkColor={colors.white}
+              />
+            ))}
+            {customActivities.map(item => (
+              <ActivityTile
+                key={item.id}
+                selected={item.id === customId}
+                label={item.name}
+                art={
+                  item.image ? (
+                    <Image
+                      source={{ uri: item.image }}
+                      style={styles.tileImage}
                     />
-                  )}
-                  <Text
-                    style={[styles.tileLabel, selected && styles.tileLabelOn]}
-                    numberOfLines={1}
-                  >
-                    {t(`imFree.activities.${item.id}`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                  ) : (
+                    <Text style={styles.tileEmoji}>{item.emoji}</Text>
+                  )
+                }
+                onPress={() => {
+                  setActivity('other');
+                  setCustomId(item.id);
+                }}
+                onLongPress={() => confirmRemove(item)}
+                styles={styles}
+                checkColor={colors.white}
+              />
+            ))}
+            <ActivityTile
+              selected={false}
+              label={t('imFree.activities.other')}
+              art={
+                <Icon
+                  name="add-circle-outline"
+                  size={ms(24)}
+                  color={colors.primary}
+                />
+              }
+              onPress={() => {
+                Keyboard.dismiss();
+                setCustomSheetOpen(true);
+              }}
+              styles={styles}
+              checkColor={colors.white}
+            />
           </View>
+          {customActivities.length > 0 ? (
+            <Text style={[styles.hint, styles.customHint]}>
+              {t('imFree.custom.removeHint')}
+            </Text>
+          ) : null}
 
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -352,30 +423,26 @@ export default function ImFreeScreen({ navigation }: Props) {
                 </Text>
               </View>
               <View style={styles.avatarStack}>
-                {NEARBY_PREVIEW.map((initials, i) => (
+                {nearbyPreview.map((user, i) => (
+                  <Image
+                    key={user.id}
+                    source={user.avatar}
+                    style={[styles.avatar, i > 0 && styles.avatarOverlap]}
+                    accessibilityLabel={user.name}
+                  />
+                ))}
+                {nearby > nearbyPreview.length ? (
                   <View
-                    key={initials}
                     style={[
                       styles.avatar,
-                      i > 0 && styles.avatarOverlap,
-                      { backgroundColor: avatarColors[i].backgroundColor },
+                      nearbyPreview.length > 0 && styles.avatarOverlap,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.avatarText,
-                        { color: avatarColors[i].color },
-                      ]}
-                    >
-                      {initials}
+                    <Text style={styles.avatarText}>
+                      {`+${nearby - nearbyPreview.length}`}
                     </Text>
                   </View>
-                ))}
-                <View style={[styles.avatar, styles.avatarOverlap]}>
-                  <Text style={styles.avatarText}>
-                    {`+${Math.max(nearby - NEARBY_PREVIEW.length, 0)}`}
-                  </Text>
-                </View>
+                ) : null}
               </View>
             </View>
           </View>
@@ -396,6 +463,7 @@ export default function ImFreeScreen({ navigation }: Props) {
               }
               leadingIcon="radio-outline"
               loading={broadcasting}
+              disabled={!canBroadcast}
               onPress={onBroadcast}
             />
           </View>
@@ -412,6 +480,58 @@ export default function ImFreeScreen({ navigation }: Props) {
           setPickerOpen(false);
         }}
       />
+      <CustomActivitySheet
+        visible={customSheetOpen}
+        onClose={() => setCustomSheetOpen(false)}
+        onSave={onSaveCustom}
+      />
     </SafeAreaView>
+  );
+}
+
+interface ActivityTileProps {
+  selected: boolean;
+  label: string;
+  art: ReactNode;
+  onPress: () => void;
+  onLongPress?: () => void;
+  checkColor: string;
+  styles: ReturnType<typeof createStyles>;
+}
+
+function ActivityTile({
+  selected,
+  label,
+  art,
+  onPress,
+  onLongPress,
+  checkColor,
+  styles,
+}: ActivityTileProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={({ pressed }) => [
+        styles.tile,
+        selected && styles.tileSelected,
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+    >
+      {selected ? (
+        <View style={styles.tileCheck}>
+          <Icon name="checkmark" size={ms(10)} color={checkColor} />
+        </View>
+      ) : null}
+      {art}
+      <Text
+        style={[styles.tileLabel, selected && styles.tileLabelOn]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }

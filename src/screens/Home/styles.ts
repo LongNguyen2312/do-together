@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { ms } from 'react-native-size-matters';
 
-import { fonts, fs, type AppColors } from '@/theme';
+import { fonts, fs, lightColors, type AppColors } from '@/theme';
 
 const SCREEN_PADDING = ms(16);
 const MARKER_AVATAR = ms(32);
@@ -30,67 +30,6 @@ export function createStyles(colors: AppColors) {
     pressed: {
       opacity: 0.85,
       transform: [{ scale: 0.97 }],
-    },
-
-    header: {
-      paddingBottom: ms(6),
-      zIndex: 1,
-      backgroundColor: colors.background,
-      shadowColor: colors.black,
-      shadowOpacity: 0.04,
-      shadowRadius: ms(8),
-      shadowOffset: { width: 0, height: ms(1) },
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SCREEN_PADDING,
-    },
-    brand: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-    },
-    brandLogo: {
-      width: ms(20),
-      height: ms(20),
-    },
-    brandName: {
-      fontSize: fs(17),
-      lineHeight: fs(22),
-      fontFamily: fonts.bold,
-      letterSpacing: -0.3,
-      color: colors.primary,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-    },
-    headerButton: {
-      width: ms(36),
-      height: ms(32),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    notificationDot: {
-      position: 'absolute',
-      top: ms(5),
-      right: ms(8),
-      width: ms(8),
-      height: ms(8),
-      borderRadius: ms(4),
-      borderWidth: 1.5,
-      borderColor: colors.background,
-      backgroundColor: colors.primary,
-    },
-    profileButton: {
-      width: ms(26),
-      height: ms(26),
-      marginLeft: ms(4),
-      borderRadius: ms(13),
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primaryDark,
     },
 
     body: {
@@ -192,9 +131,12 @@ export function createStyles(colors: AppColors) {
       backgroundColor: colors.primary,
     },
     chipEmoji: {
+      width: fs(14),
+      height: fs(14),
       fontSize: fs(11),
       lineHeight: fs(14),
-      fontFamily: fonts.regular,
+      textAlign: 'center',
+      includeFontPadding: false,
     },
     chipText: {
       fontSize: fs(11.5),
@@ -297,6 +239,23 @@ export function createStyles(colors: AppColors) {
       transform: [{ rotate: '45deg' }],
       backgroundColor: colors.card,
     },
+    markerFocused: {
+      // Grow from the tip so it stays on the coordinate.
+      transformOrigin: 'bottom',
+      transform: [{ scale: 1.15 }],
+      zIndex: 1,
+    },
+    markerPillJoined: {
+      borderWidth: 2,
+      borderColor: colors.success,
+    },
+    markerPillFocused: {
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    markerTipFocused: {
+      backgroundColor: colors.primary,
+    },
     cluster: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -392,6 +351,10 @@ export function createStyles(colors: AppColors) {
       shadowOffset: { width: 0, height: ms(1) },
       elevation: 1,
     },
+    cardPressed: {
+      opacity: 0.92,
+      transform: [{ scale: 0.99 }],
+    },
     cardTop: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -428,10 +391,22 @@ export function createStyles(colors: AppColors) {
       fontFamily: fonts.semibold,
     },
     tag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(3),
       paddingHorizontal: ms(8),
       paddingVertical: ms(4),
       borderRadius: ms(999),
       backgroundColor: colors.surfaceHigh,
+    },
+    // Own box so the glyph centers against the label instead of sitting on its baseline.
+    tagEmoji: {
+      width: fs(12),
+      height: fs(12),
+      fontSize: fs(9.5),
+      lineHeight: fs(12),
+      textAlign: 'center',
+      includeFontPadding: false,
     },
     tagHighlight: {
       backgroundColor: colors.primarySoft,
@@ -441,6 +416,7 @@ export function createStyles(colors: AppColors) {
       lineHeight: fs(12),
       fontFamily: fonts.bold,
       color: colors.text,
+      includeFontPadding: false,
     },
     tagTextHighlight: {
       color: colors.primaryDark,
@@ -520,18 +496,37 @@ export function createStyles(colors: AppColors) {
       fontFamily: fonts.bold,
       color: colors.white,
     },
-    detailsButton: {
+    joinedButton: {
       flexShrink: 0,
       height: ms(30),
-      justifyContent: 'center',
-      paddingHorizontal: ms(14),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(4),
+      paddingHorizontal: ms(12),
       borderRadius: ms(999),
-      backgroundColor: colors.surfaceMuted,
+      // Light-theme green in both modes: dark mode's success is too pale for white text.
+      backgroundColor: lightColors.success,
     },
-    detailsText: {
+    joinedText: {
       fontSize: fs(11.5),
-      fontFamily: fonts.semibold,
-      color: colors.text,
+      fontFamily: fonts.bold,
+      color: colors.white,
+    },
+    // A label, not a button: ongoing activities can't be joined.
+    ongoingPill: {
+      flexShrink: 0,
+      height: ms(30),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(6),
+      paddingHorizontal: ms(12),
+      borderRadius: ms(999),
+      backgroundColor: `${colors.success}1F`,
+    },
+    ongoingText: {
+      fontSize: fs(11.5),
+      fontFamily: fonts.bold,
+      color: colors.success,
     },
   });
 }

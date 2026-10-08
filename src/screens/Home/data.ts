@@ -1,106 +1,24 @@
-import type { ImageSourcePropType } from 'react-native';
 import type { LngLat, LngLatBounds } from '@maplibre/maplibre-react-native';
+import Supercluster from 'supercluster';
 
-/** Placeholder content until the activities API exists. */
+import type { ActivityCategory } from '@/types/activity';
 
 export type CategoryId =
   | 'all'
-  | 'running'
-  | 'coffee'
-  | 'food'
-  | 'football'
-  | 'badminton'
-  | 'walking';
+  | Extract<
+      ActivityCategory,
+      'running' | 'coffee' | 'food' | 'football' | 'badminton' | 'walking'
+    >;
 
-export const CATEGORIES: { id: CategoryId; emoji?: string }[] = [
-  { id: 'all' },
-  { id: 'running', emoji: '🏃' },
-  { id: 'coffee', emoji: '☕' },
-  { id: 'food', emoji: '🍔' },
-  { id: 'football', emoji: '⚽' },
-  { id: 'badminton', emoji: '🏸' },
-  { id: 'walking', emoji: '🚶' },
+export const CATEGORY_IDS: CategoryId[] = [
+  'all',
+  'running',
+  'coffee',
+  'food',
+  'football',
+  'badminton',
+  'walking',
 ];
-
-export interface Activity {
-  id: string;
-  category: Exclude<CategoryId, 'all'>;
-  coordinate: LngLat;
-  host: string;
-  hostAvatar: ImageSourcePropType;
-  /** True when it is happening right now rather than starting soon. */
-  live: boolean;
-  when: string;
-  tag: string;
-  title: string;
-  description: string;
-  participants: ImageSourcePropType[];
-  joined: number;
-  capacity?: number;
-  distance?: string;
-  marker: {
-    avatar: ImageSourcePropType;
-    status: string;
-    title: string;
-  };
-}
-
-export const ACTIVITIES: Activity[] = [
-  {
-    id: 'lakeside-run',
-    category: 'running',
-    coordinate: [105.833, 21.0515],
-    host: 'Minh & Friends',
-    hostAvatar: require('@/assets/images/home/avatar-minh-friends.jpg'),
-    live: false,
-    when: 'Today • 18:30 (in 25m)',
-    tag: '🏃 Run • 5 km',
-    title: 'Sunset Lakeside Run & Stretch',
-    description:
-      'Pacing 6:00/km easy conversational jog around Tran Quoc Pagoda track.',
-    participants: [
-      require('@/assets/images/home/avatar-runner-1.jpg'),
-      require('@/assets/images/home/avatar-runner-2.jpg'),
-      require('@/assets/images/home/avatar-runner-3.jpg'),
-    ],
-    joined: 3,
-    capacity: 5,
-    distance: '1.2 km away',
-    marker: {
-      avatar: require('@/assets/images/home/avatar-minh.jpg'),
-      status: 'IN 20M • 3 JOINED',
-      title: 'Lakeside Jog',
-    },
-  },
-  {
-    id: 'coffee-cowork',
-    category: 'coffee',
-    coordinate: [105.8335, 21.0585],
-    host: 'Lan Anh',
-    hostAvatar: require('@/assets/images/home/avatar-lan-anh.jpg'),
-    live: true,
-    when: 'Right now • 700m away',
-    tag: '☕ Coffee & Work',
-    title: 'Coffee & Casual Co-work',
-    description:
-      'Highlands Coffee Boat terrace, plenty of outdoor seating and quiet shade.',
-    participants: [
-      require('@/assets/images/home/avatar-cowork-1.jpg'),
-      require('@/assets/images/home/avatar-cowork-2.jpg'),
-    ],
-    joined: 2,
-    marker: {
-      avatar: require('@/assets/images/home/avatar-lan.jpg'),
-      status: 'NOW • 2 PEOPLE',
-      title: 'Highlands Chill',
-    },
-  },
-];
-
-export const FOOTBALL_CLUSTER: { coordinate: LngLat; count: number } = {
-  coordinate: [105.818, 21.0572],
-  count: 4,
-};
 
 export function boundsOf(points: LngLat[]): LngLatBounds {
   const lngs = points.map(([lng]) => lng);
@@ -111,4 +29,85 @@ export function boundsOf(points: LngLat[]): LngLatBounds {
     Math.max(...lngs),
     Math.max(...lats),
   ];
+}
+
+export function centerOf(points: LngLat[]): LngLat {
+  const [west, south, east, north] = boundsOf(points);
+  return [(west + east) / 2, (south + north) / 2];
+}
+
+/** Same model as react-native-map-clustering: supercluster over the activity points. */
+export const CLUSTER_OPTIONS = {
+  /** Cluster radius in screen pixels (MapLibre uses 512px tiles, like supercluster). */
+  radius: 70,
+  /** Above this zoom every activity gets its own marker. */
+  maxZoom: 16,
+  minPoints: 2,
+};
+
+const WORLD_BOUNDS: [number, number, number, number] = [-180, -85, 180, 85];
+const TILE_SIZE = 512;
+
+function mercatorY(lat: number) {
+  const sin = Math.sin((lat * Math.PI) / 180);
+  return 0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI);
+}
+
+/** Screen offset of `from` relative to `to` at this zoom, in pixels. */
+export function pixelOffset(from: LngLat, to: LngLat, zoom: number) {
+  const world = TILE_SIZE * 2 ** zoom;
+  return {
+    x: ((from[0] - to[0]) / 360) * world,
+    y: (mercatorY(from[1]) - mercatorY(to[1])) * world,
+  };
+}
+
+export type MarkerEntry<T> =
+  | { kind: 'single'; item: T }
+  | {
+      kind: 'cluster';
+      clusterId: number;
+      center: LngLat;
+      items: T[];
+    };
+
+/** Builds a clusterer for these items; rebuild only when the item set changes. */
+export function createClusterer<T extends { id: string; coordinate: LngLat }>(
+  items: T[],
+) {
+  const byId = new Map(items.map(item => [item.id, item]));
+  const index = new Supercluster<{ id: string }>(CLUSTER_OPTIONS).load(
+    items.map(item => ({
+      type: 'Feature',
+      properties: { id: item.id },
+      geometry: { type: 'Point', coordinates: item.coordinate },
+    })),
+  );
+
+  return {
+    /** Clusters are fixed per whole zoom level, so markers only regroup at level changes. */
+    entriesAt(zoom: number): MarkerEntry<T>[] {
+      return index.getClusters(WORLD_BOUNDS, Math.floor(zoom)).map(feature => {
+        const props = feature.properties as
+          | { id: string }
+          | { cluster: true; cluster_id: number };
+        if ('cluster' in props) {
+          return {
+            kind: 'cluster',
+            clusterId: props.cluster_id,
+            center: feature.geometry.coordinates as LngLat,
+            items: index
+              .getLeaves(props.cluster_id, Infinity)
+              .map(leaf => byId.get(leaf.properties.id))
+              .filter((item): item is T => !!item),
+          };
+        }
+        return { kind: 'single', item: byId.get(props.id) as T };
+      });
+    },
+    /** Zoom at which the cluster splits apart. */
+    expansionZoom(clusterId: number) {
+      return index.getClusterExpansionZoom(clusterId);
+    },
+  };
 }

@@ -59,6 +59,27 @@ jest.mock('react-native-compass-heading', () => ({
   },
 }));
 
+jest.mock('@react-native-camera-roll/camera-roll', () => ({
+  CameraRoll: { saveAsset: jest.fn(() => Promise.resolve({})) },
+  iosReadGalleryPermission: jest.fn(() => Promise.resolve('granted')),
+  iosRequestAddOnlyGalleryPermission: jest.fn(() => Promise.resolve('granted')),
+}));
+
+jest.mock('react-native-blob-util', () => ({
+  __esModule: true,
+  default: {
+    config: jest.fn(() => ({
+      fetch: jest.fn(() => Promise.resolve({ path: () => '/tmp/photo.jpg' })),
+    })),
+  },
+}));
+
+jest.mock('react-native-nitro-sound', () => ({
+  createSound: jest.fn(),
+}));
+
+jest.mock('lottie-react-native', () => 'LottieView');
+
 jest.mock('react-native-splash-view', () => ({
   hideSplash: jest.fn(),
   showSplash: jest.fn(),

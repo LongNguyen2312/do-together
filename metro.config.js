@@ -3,14 +3,21 @@ const {
   wrapWithReanimatedMetroConfig,
 } = require('react-native-reanimated/metro-config');
 
+const defaultConfig = getDefaultConfig(__dirname);
+
 /**
  * Metro configuration
  * https://reactnative.dev/docs/metro
  *
  * @type {import('@react-native/metro-config').MetroConfig}
  */
-const config = {};
+const config = {
+  resolver: {
+    // Animated stickers ship as dotLottie assets (src/assets/stickers).
+    assetExts: [...defaultConfig.resolver.assetExts, 'lottie'],
+  },
+};
 
 module.exports = wrapWithReanimatedMetroConfig(
-  mergeConfig(getDefaultConfig(__dirname), config),
+  mergeConfig(defaultConfig, config),
 );

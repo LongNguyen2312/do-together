@@ -9,8 +9,9 @@ module.exports = {
   watchman: false,
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '\\.lottie$': '<rootDir>/jest.assetMock.js',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-navigation|react-redux|@reduxjs/toolkit|redux-persist|i18next|react-i18next|immer|reselect|react-native-vector-icons|react-native-gesture-handler|react-native-reanimated|react-native-worklets|react-native-screens|react-native-safe-area-context|react-native-svg|phosphor-react-native)/)',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|react-redux|@reduxjs/toolkit|redux-persist|i18next|react-i18next|immer|reselect|react-native-vector-icons|react-native-gesture-handler|react-native-reanimated|react-native-reanimated-carousel|react-native-worklets|react-native-screens|react-native-safe-area-context|react-native-svg|react-native-image-picker|phosphor-react-native|supercluster|kdbush)/)',
   ],
 };

@@ -1,24 +1,15 @@
+import { CATEGORY_EMOJI } from '@/services/mockData';
 import type {
   BroadcastActivity,
+  BroadcastActivityId,
   BroadcastDuration,
   BroadcastTime,
   BroadcastWhen,
 } from '@/types/broadcast';
 
-export const ACTIVITIES: BroadcastActivity[] = [
-  { id: 'running', emoji: '🏃' },
-  { id: 'coffee', emoji: '☕' },
-  { id: 'food', emoji: '🍔' },
-  { id: 'football', emoji: '⚽' },
-  { id: 'badminton', emoji: '🏸' },
-  { id: 'gaming', emoji: '🎮' },
-  { id: 'movie', emoji: '🎬' },
-  { id: 'walking', emoji: '🚶' },
-  { id: 'photography', emoji: '📸' },
-  { id: 'coworking', emoji: '💻' },
-  { id: 'language', emoji: '🗣️' },
-  { id: 'other' },
-];
+export const ACTIVITIES: BroadcastActivity[] = (
+  Object.keys(CATEGORY_EMOJI) as BroadcastActivityId[]
+).map(id => ({ id, emoji: CATEGORY_EMOJI[id] }));
 
 export const WHEN_OPTIONS: BroadcastWhen[] = ['now', 'in30', 'tonight'];
 
@@ -50,8 +41,26 @@ export const RADIUS_KM = { min: 0.5, max: 10, step: 0.5, initial: 3 };
 
 export const NOTE_MAX_LENGTH = 200;
 
-/** Mock signal until the nearby-people API exists. */
-export const NEARBY_PREVIEW = ['JD', 'AL', 'MR'];
+export const CUSTOM_ACTIVITY_MAX_LENGTH = 30;
 
-export const estimateNearby = (radiusKm: number) =>
-  Math.max(2, Math.round(radiusKm * 2.8));
+/** Two full rows in the custom activity sheet. */
+export const CUSTOM_EMOJIS_PER_ROW = 7;
+
+export const DEFAULT_CUSTOM_EMOJIS = [
+  '🎱',
+  '🏸',
+  '🎳',
+  '🏓',
+  '🎾',
+  '🏀',
+  '🏐',
+  '♟️',
+  '🎲',
+  '🎤',
+  '🎸',
+  '🧘',
+  '🏊',
+  '🧗',
+];
+
+export const NEARBY_PREVIEW_COUNT = 3;

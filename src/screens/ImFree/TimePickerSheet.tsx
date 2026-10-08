@@ -11,26 +11,17 @@ import {
   type ScrollViewInstance,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
-import { scheduleOnRN } from 'react-native-worklets';
 
 import PrimaryButton from '@/components/PrimaryButton';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
 import type { BroadcastDay, BroadcastTime } from '@/types/broadcast';
 
 import { defaultPickTime, isPastTime, MINUTE_STEP } from './data';
+import { useSheetTransition } from './useSheetTransition';
 
-const OPEN_TIMING = { duration: 280, easing: Easing.out(Easing.cubic) };
-const CLOSE_TIMING = { duration: 220, easing: Easing.in(Easing.cubic) };
-/** Off-screen distance used before the sheet's first layout. */
-const SHEET_FALLBACK_HEIGHT = ms(480);
 const ITEM_HEIGHT = ms(40);
 const VISIBLE_ITEMS = 5;
 const WHEEL_WIDTH = ms(72);
@@ -71,29 +62,8 @@ export default function TimePickerSheet({
 
   const past = isPastTime(draft);
 
-  const [mounted, setMounted] = useState(visible);
-  const progress = useSharedValue(0);
-  const sheetHeight = useSharedValue(SHEET_FALLBACK_HEIGHT);
-
-  useEffect(() => {
-    if (visible) {
-      setMounted(true);
-      progress.value = withTiming(1, OPEN_TIMING);
-    } else {
-      progress.value = withTiming(0, CLOSE_TIMING, finished => {
-        if (finished) {
-          scheduleOnRN(setMounted, false);
-        }
-      });
-    }
-  }, [visible, progress]);
-
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-  }));
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * sheetHeight.value }],
-  }));
+  const { mounted, backdropStyle, sheetStyle, onSheetLayout } =
+    useSheetTransition(visible);
 
   return (
     <Modal
@@ -113,9 +83,7 @@ export default function TimePickerSheet({
           />
         </Animated.View>
         <Animated.View
-          onLayout={event => {
-            sheetHeight.value = event.nativeEvent.layout.height;
-          }}
+          onLayout={onSheetLayout}
           style={[
             styles.sheet,
             { paddingBottom: Math.max(insets.bottom, ms(16)) },

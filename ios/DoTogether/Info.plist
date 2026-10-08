@@ -40,6 +40,14 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string/>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos to share in your group chats.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record voice messages for your group chats.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save photos from your group chats.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a photo for your custom activity.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

@@ -7,11 +7,22 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import MainTabNavigator from '@/navigators/MainTabNavigator';
+import ActivitiesScreen from '@/screens/Activities';
+import ActivityDetailScreen from '@/screens/ActivityDetail';
+import CommunitiesScreen from '@/screens/Communities';
 import ForgotPasswordScreen from '@/screens/ForgotPassword';
+import FreeNearbyListScreen from '@/screens/FreeNearbyList';
+import FreeNearbyMapScreen from '@/screens/FreeNearbyMap';
+import GroupChatScreen from '@/screens/GroupChat';
+import GroupChatInfoScreen from '@/screens/GroupChatInfo';
+import GroupMediaScreen from '@/screens/GroupMedia';
+import GroupMembersScreen from '@/screens/GroupMembers';
+import HotActivitiesScreen from '@/screens/HotActivities';
 import ImFreeScreen from '@/screens/ImFree';
 import LoginScreen from '@/screens/Login';
 import OnboardingScreen from '@/screens/Onboarding';
 import SignUpScreen from '@/screens/SignUp';
+import StoryViewerScreen from '@/screens/StoryViewer';
 import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
@@ -47,6 +58,21 @@ export default function RootNavigator() {
     <Stack.Group>
       <Stack.Screen name="Main" component={MainTabNavigator} />
       <Stack.Screen name="ImFree" component={ImFreeScreen} />
+      <Stack.Screen name="ActivityHistory" component={ActivitiesScreen} />
+      <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
+      <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="GroupChatInfo" component={GroupChatInfoScreen} />
+      <Stack.Screen name="GroupMedia" component={GroupMediaScreen} />
+      <Stack.Screen name="GroupMembers" component={GroupMembersScreen} />
+      <Stack.Screen name="FreeNearbyMap" component={FreeNearbyMapScreen} />
+      <Stack.Screen name="FreeNearbyList" component={FreeNearbyListScreen} />
+      <Stack.Screen name="HotActivities" component={HotActivitiesScreen} />
+      <Stack.Screen name="Communities" component={CommunitiesScreen} />
+      <Stack.Screen
+        name="StoryViewer"
+        component={StoryViewerScreen}
+        options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+      />
     </Stack.Group>
   );
 

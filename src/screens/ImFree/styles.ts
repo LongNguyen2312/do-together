@@ -114,6 +114,11 @@ export function createStyles(colors: AppColors) {
       fontSize: fs(22),
       lineHeight: fs(28),
     },
+    tileImage: {
+      width: fs(28),
+      height: fs(28),
+      borderRadius: ms(8),
+    },
     tileLabel: {
       fontSize: fs(12.5),
       lineHeight: fs(16),
@@ -155,6 +160,10 @@ export function createStyles(colors: AppColors) {
       lineHeight: fs(14),
       fontFamily: fonts.medium,
       color: colors.textSecondary,
+    },
+    customHint: {
+      marginTop: ms(8),
+      color: colors.textMuted,
     },
     instantRow: {
       flexDirection: 'row',

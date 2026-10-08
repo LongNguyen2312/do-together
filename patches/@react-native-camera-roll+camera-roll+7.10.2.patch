@@ -1,0 +1,14 @@
+diff --git a/node_modules/@react-native-camera-roll/camera-roll/ios/RNCCameraRoll.mm b/node_modules/@react-native-camera-roll/camera-roll/ios/RNCCameraRoll.mm
+index d63f1a7..7d01c6e 100644
+--- a/node_modules/@react-native-camera-roll/camera-roll/ios/RNCCameraRoll.mm
++++ b/node_modules/@react-native-camera-roll/camera-roll/ios/RNCCameraRoll.mm
+@@ -216,7 +216,8 @@ static void requestPhotoLibraryAccess(RCTPromiseRejectBlock reject, PhotosAuthor
+         PHFetchResult<PHAsset *> *createdAsset = [PHAsset fetchAssetsWithLocalIdentifiers:@[placeholder.localIdentifier]
+                                                                                   options:options];
+         if (createdAsset.count < 1) {
+-          reject(kErrorUnableToSave, nil, nil);
++          // Saved, but add-only access can't read the new asset back.
++          resolve(@{@"node": @{@"id": placeholder.localIdentifier}});
+           return;
+         }
+         NSDictionary *dictionary = [self convertAssetToDictionary:[createdAsset firstObject]
