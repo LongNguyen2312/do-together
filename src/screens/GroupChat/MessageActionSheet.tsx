@@ -23,6 +23,8 @@ const REPORT_REASONS: ReportReason[] = [
 interface Props {
   /** Null keeps the sheet closed. */
   message: ChatMessage | null;
+  /** Opens on the actions (the default), or straight on the reasons. */
+  startOn?: 'actions' | 'report';
   reported: boolean;
   styles: GroupChatStyles;
   onClose: () => void;
@@ -34,6 +36,7 @@ interface Props {
 /** Long-press menu: quick reactions, reply and report. */
 export default function MessageActionSheet({
   message,
+  startOn = 'actions',
   reported,
   styles,
   onClose,
@@ -51,10 +54,10 @@ export default function MessageActionSheet({
 
   useEffect(() => {
     if (message) {
-      setStep('actions');
+      setStep(startOn);
       setReason(null);
     }
-  }, [message]);
+  }, [message, startOn]);
 
   const mine = message?.senderId === ME;
   const myReaction = message?.reactions?.find(item => item.mine)?.emoji;

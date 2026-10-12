@@ -5992,6 +5992,11 @@ react-native-compass-heading@2.0.2:
   resolved "https://registry.yarnpkg.com/react-native-compass-heading/-/react-native-compass-heading-2.0.2.tgz#3d504e83a21aa333d682b3c3b958dab6513357bf"
   integrity sha512-HeWeJp3Z+DjJBGjw89M11Oz3Zmw32ge458bNjtjKC1aN5IBbUoZQYCtmDcwwo1V6GG3fomWdCpHgHgaKO5crQw==
 
+react-native-compressor@2.0.3:
+  version "2.0.3"
+  resolved "https://registry.yarnpkg.com/react-native-compressor/-/react-native-compressor-2.0.3.tgz#cc7fe16ee617d11698be9b65590c568023567b58"
+  integrity sha512-T+wEEFpPkS4ewd4LLRmxBOro2e5TztDy2lmsC+8ThwzSnIguR98fHUEay3UYOKOKDB+zuFWRq7DO4JWjqKqWNg==
+
 react-native-gesture-handler@^3.3.0:
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/react-native-gesture-handler/-/react-native-gesture-handler-3.3.0.tgz#58817e551bab57e514fb6784003222d7d7f5738f"
@@ -6009,6 +6014,11 @@ react-native-is-edge-to-edge@^1.3.1:
   version "1.3.1"
   resolved "https://registry.yarnpkg.com/react-native-is-edge-to-edge/-/react-native-is-edge-to-edge-1.3.1.tgz#feb9a6a8faf0874298947edd556e5af22044e139"
   integrity sha512-NIXU/iT5+ORyCc7p0z2nnlkouYKX425vuU1OEm6bMMtWWR9yvb+Xg5AZmImTKoF9abxCPqrKC3rOZsKzUYgYZA==
+
+react-native-nitro-image@0.15.2:
+  version "0.15.2"
+  resolved "https://registry.yarnpkg.com/react-native-nitro-image/-/react-native-nitro-image-0.15.2.tgz#d7807f4a12ee7ecbc94990b2290d83b16fef9165"
+  integrity sha512-WiaGnORmfNIIqtRJW76TWYNet1YZx1MWDlSOxd0jfcIBN4KjkVVMDVpvO01eCfpxKVG0ez9nA2iLQkPVlGFj+A==
 
 react-native-nitro-modules@^0.37.1:
   version "0.37.1"
@@ -6073,6 +6083,16 @@ react-native-vector-icons@^10.3.0:
   dependencies:
     prop-types "^15.7.2"
     yargs "^16.1.1"
+
+react-native-video@6.19.3:
+  version "6.19.3"
+  resolved "https://registry.yarnpkg.com/react-native-video/-/react-native-video-6.19.3.tgz#f006becd33cfad4bc8249ba54390d37c0d19a0e4"
+  integrity sha512-hI0YhEH6NdkfbFfMoZTZizEmLIm13rLlMf6KyWlGSe0+6If7/gvhapR2j/BMKBEwmlAIZjU4A6ax4Qn7yssjLQ==
+
+react-native-vision-camera@5.2.3:
+  version "5.2.3"
+  resolved "https://registry.yarnpkg.com/react-native-vision-camera/-/react-native-vision-camera-5.2.3.tgz#8b489ae2939dbebc441917069fc0c3146f49aa93"
+  integrity sha512-OHjgM8BPzxppTqbF1FEltj+fxvisj4xdghM7ypoT1p6cOe28HByhOJP1c7LkBiUiZuotbsdbQwGdJ8nU7ZvPzA==
 
 react-native-worklets@0.13.0:
   version "0.13.0"

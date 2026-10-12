@@ -27,8 +27,15 @@ const initialState: ChatState = {
 
 type MessageRef = { activityId: string; messageId: string };
 
+// Copies of the seed, not the cached messages themselves: a change makes a new
+// message (so its row re-renders) and the cache stays as it was.
 const ensureThread = (state: ChatState, activityId: string) =>
-  (state.threads[activityId] ??= [...seedThread(activityId).messages]);
+  (state.threads[activityId] ??= seedThread(activityId).messages.map(
+    message => ({
+      ...message,
+      reactions: message.reactions?.map(reaction => ({ ...reaction })),
+    }),
+  ));
 
 const chatSlice = createSlice({
   name: 'chat',
@@ -41,6 +48,19 @@ const chatSlice = createSlice({
       ensureThread(state, action.payload.activityId).push(
         action.payload.message,
       );
+    },
+    /** Changes a sent message, e.g. once its media is compressed. */
+    updateMessage: (
+      state,
+      action: PayloadAction<MessageRef & { patch: Partial<ChatMessage> }>,
+    ) => {
+      const { activityId, messageId, patch } = action.payload;
+      const message = ensureThread(state, activityId).find(
+        item => item.id === messageId,
+      );
+      if (message) {
+        Object.assign(message, patch);
+      }
     },
     /** One reaction per person: picking another emoji moves it. */
     toggleReaction: (
@@ -93,6 +113,7 @@ const chatSlice = createSlice({
 
 export const {
   addMessage,
+  updateMessage,
   toggleReaction,
   reportMessage,
   markRead,
@@ -117,6 +138,7 @@ export const selectThread = (state: RootState, activityId: string) =>
 export const selectUnreadCount = (state: RootState, activityId: string) =>
   unreadCountIn(state.chat, activityId);
 
+/** Sends a message; returns its id. */
 export const sendChatMessage =
   (activityId: string, draft: ChatDraft) => (dispatch: AppDispatch) => {
     const id = newMessageId();
@@ -136,6 +158,7 @@ export const sendChatMessage =
         dispatch(addMessage({ activityId, message: reply }));
       }
     }, REPLY_MS);
+    return id;
   };
 
 export const receiveChatMessage =

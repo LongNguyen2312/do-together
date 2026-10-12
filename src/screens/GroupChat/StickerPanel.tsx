@@ -10,19 +10,34 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
+import Icon from 'react-native-vector-icons/Ionicons';
 
-import Twemoji, { TWEMOJI_LICENSE_URL } from '@/components/Twemoji';
+import { TWEMOJI_LICENSE_URL } from '@/components/Twemoji';
 import {
   STICKER_PACKS,
   type Sticker,
   type StickerPack,
 } from '@/services/stickers';
 
-import StickerView from './StickerView';
+import StickerView from '@/components/StickerView';
+import { useTheme } from '@/theme';
 import {
   STICKER_GRID_PADDING as GRID_PADDING,
   type GroupChatStyles,
 } from './styles';
+
+/**
+ * Each pack's tab, as an Ionicons name: outlined, filled when it's the pack
+ * showing. Line icons, in step with the rest of the chat, rather than
+ * coloured emoji.
+ */
+const TAB_ICONS: Record<string, string> = {
+  animated: 'sparkles',
+  phrases: 'chatbubble-ellipses',
+  moves: 'walk',
+  feels: 'happy',
+  hangout: 'cafe',
+};
 
 /** Sticker size (see StickerView) plus a little breathing room. */
 const CELL_HEIGHT: Record<Sticker['kind'], number> = {
@@ -35,11 +50,15 @@ const CELL_HEIGHT: Record<Sticker['kind'], number> = {
 export default function StickerPanel({
   styles,
   onPick,
+  playing = true,
 }: {
   styles: GroupChatStyles;
   onPick: (sticker: Sticker) => void;
+  /** False while it's kept out of sight: the animated stickers hold still. */
+  playing?: boolean;
 }) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, ms(10));
   const [packId, setPackId] = useState(STICKER_PACKS[0].id);
@@ -73,7 +92,15 @@ export default function StickerPanel({
             accessibilityState={{ selected: item.id === packId }}
             accessibilityLabel={t(`stickers.packs.${item.id}`)}
           >
-            <Twemoji emoji={item.icon} size={ms(22)} />
+            <Icon
+              name={
+                item.id === packId
+                  ? TAB_ICONS[item.id] ?? 'apps'
+                  : `${TAB_ICONS[item.id] ?? 'apps'}-outline`
+              }
+              size={ms(21)}
+              color={item.id === packId ? colors.primary : colors.textMuted}
+            />
           </Pressable>
         ))}
       </View>
@@ -82,6 +109,7 @@ export default function StickerPanel({
           key={item.id}
           pack={item}
           hidden={item.id !== packId}
+          playing={playing && item.id === packId}
           bottomInset={bottomInset}
           styles={styles}
           onPick={pick}
@@ -94,12 +122,14 @@ export default function StickerPanel({
 const PackGrid = memo(function PackGridView({
   pack,
   hidden,
+  playing,
   bottomInset,
   styles,
   onPick,
 }: {
   pack: StickerPack;
   hidden: boolean;
+  playing: boolean;
   bottomInset: number;
   styles: GroupChatStyles;
   onPick: (sticker: Sticker) => void;
@@ -143,7 +173,7 @@ const PackGrid = memo(function PackGridView({
                 : t('chat.sticker')
             }
           >
-            <StickerView sticker={sticker} size="panel" />
+            <StickerView sticker={sticker} size="panel" playing={playing} />
           </Pressable>
         ))}
       </View>

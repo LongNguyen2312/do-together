@@ -64,6 +64,11 @@ interface SeedThread {
 
 const seeds = new Map<string, SeedThread>();
 
+/** Photos sent together, at most. */
+export const MAX_CHAT_PHOTOS = 5;
+/** A clip in the chat, at most. */
+export const MAX_CHAT_VIDEO_MS = 10_000;
+
 export const newMessageId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 

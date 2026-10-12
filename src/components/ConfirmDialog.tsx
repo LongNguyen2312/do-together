@@ -184,7 +184,9 @@ function createStyles(colors: AppColors) {
       paddingHorizontal: ms(22),
       paddingBottom: ms(18),
       borderRadius: ms(28),
-      backgroundColor: colors.card,
+      // A little see-through, so the screen behind still shows. (Not liquid
+      // glass: it draws at the wrong size in a modal over a native modal.)
+      backgroundColor: `${colors.card}D9`,
       shadowColor: colors.black,
       shadowOpacity: 0.2,
       shadowRadius: ms(24),

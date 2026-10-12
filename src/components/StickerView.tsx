@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import LottieView from 'lottie-react-native';
 import { useTranslation } from 'react-i18next';
@@ -14,18 +14,36 @@ const EMOJI_SIZE: Record<Size, number> = { panel: ms(44), message: ms(96) };
 const LOTTIE_SIZE: Record<Size, number> = { panel: ms(84), message: ms(130) };
 const PHRASE_SIZE: Record<Size, number> = { panel: fs(11), message: fs(15) };
 
-function StickerView({ sticker, size }: { sticker: Sticker; size: Size }) {
+function StickerView({
+  sticker,
+  size,
+  playing = true,
+}: {
+  sticker: Sticker;
+  size: Size;
+  /** Animated stickers hold still while false, e.g. in a hidden panel. */
+  playing?: boolean;
+}) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const lottieRef = useRef<LottieView>(null);
+  useEffect(() => {
+    if (playing) {
+      lottieRef.current?.play();
+    } else {
+      lottieRef.current?.pause();
+    }
+  }, [playing]);
 
   if (sticker.kind === 'lottie') {
     // dotLottie assets are loaded natively; parsed JSON would be re-serialised
     // on the JS thread every render.
     return (
       <LottieView
+        ref={lottieRef}
         source={sticker.source}
-        autoPlay
+        autoPlay={playing}
         loop
         renderMode="HARDWARE"
         style={{ width: LOTTIE_SIZE[size], height: LOTTIE_SIZE[size] }}

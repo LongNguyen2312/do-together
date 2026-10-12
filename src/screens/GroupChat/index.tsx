@@ -19,8 +19,10 @@ import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import PhotoViewer from '@/components/PhotoViewer';
+import VideoViewer from '@/components/VideoViewer';
 import { stopVoice } from '@/services/audio';
 import { chatMemberIds } from '@/services/chat';
+import { prepareChatMedia } from '@/services/media';
 import {
   ACTIVITIES,
   activityStatus,
@@ -35,6 +37,7 @@ import {
   selectThread,
   sendChatMessage,
   toggleReaction,
+  updateMessage,
 } from '@/store/slices/chatSlice';
 import { useTheme } from '@/theme';
 import {
@@ -42,12 +45,15 @@ import {
   type ChatDraft,
   type ChatMessage,
   type ChatPhoto,
+  type ChatPick,
+  type ChatVideo,
 } from '@/types/chat';
 import type { RootStackParamList } from '@/types/navigation';
 import { chatTime } from '@/utils/format';
 
-import Composer from './Composer';
+import Composer, { type ComposerHandle } from './Composer';
 import MessageActionSheet from './MessageActionSheet';
+import MessageReactionMenu, { type MessageFrame } from './MessageReactionMenu';
 import MessageRow from './MessageRow';
 import { chatBackground, createStyles } from './styles';
 
@@ -56,7 +62,14 @@ const TIME_GAP_MS = 10 * 60 * 1000;
 /** Consecutive messages closer than this share one name and avatar. */
 const GROUP_GAP_MS = 5 * 60 * 1000;
 const HIGHLIGHT_MS = 1600;
+/**
+ * Photos compress in a moment; until sending also uploads them (see
+ * docs/BACKEND_SPEC.md, 1.3), "sending" shows at least this long so it's
+ * seen rather than flickering past.
+ */
+const MIN_SENDING_MS = 800;
 const noop = () => {};
+const rowKey = (row: Row) => row.key;
 
 type Row =
   | { kind: 'time'; key: string; label: string; mine: boolean }
@@ -66,14 +79,12 @@ type Row =
       message: ChatMessage;
       mine: boolean;
       groupStart: boolean;
-      groupEnd: boolean;
     };
 
 function buildRows(messages: readonly ChatMessage[]): Row[] {
   const rows: Row[] = [];
   messages.forEach((message, i) => {
     const prev = messages[i - 1];
-    const next = messages[i + 1];
     const mine = message.senderId === ME;
     const newTime = !prev || message.sentAt - prev.sentAt >= TIME_GAP_MS;
     if (newTime) {
@@ -88,17 +99,12 @@ function buildRows(messages: readonly ChatMessage[]): Row[] {
       !newTime &&
       prev.senderId === message.senderId &&
       message.sentAt - prev.sentAt < GROUP_GAP_MS;
-    const joinsNext =
-      !!next &&
-      next.senderId === message.senderId &&
-      next.sentAt - message.sentAt < GROUP_GAP_MS;
     rows.push({
       kind: 'message',
       key: message.id,
       message,
       mine,
       groupStart: !joinsPrev || !!message.replyToId,
-      groupEnd: !joinsNext || !!next?.replyToId,
     });
   });
   // The list is inverted so it opens at the latest message.
@@ -114,6 +120,7 @@ export default function GroupChatScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const dispatch = useAppDispatch();
   const listRef = useRef<FlatList<Row>>(null);
+  const composerRef = useRef<ComposerHandle>(null);
 
   const activity = getActivity(route.params.activityId) ?? ACTIVITIES[0];
   // After the activity ends the chat stays readable but closed.
@@ -132,9 +139,22 @@ export default function GroupChatScreen({ navigation, route }: Props) {
     t('chat.you'),
   ].join(', ');
 
-  const [keyboardShown, setKeyboardShown] = useState(false);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
-  const [menuFor, setMenuFor] = useState<ChatMessage | null>(null);
+  /** A held message, with where it is: its reactions and actions. */
+  const [menu, setMenu] = useState<{
+    message: ChatMessage;
+    frame: MessageFrame;
+  } | null>(null);
+  /** A message being reported: the reasons sheet. */
+  const [reportFor, setReportFor] = useState<ChatMessage | null>(null);
+  const openMenu = useCallback(
+    (message: ChatMessage, frame: MessageFrame) => setMenu({ message, frame }),
+    [],
+  );
+  const replyToMessage = useCallback(
+    (message: ChatMessage) => setReplyTo(message),
+    [],
+  );
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [viewer, setViewer] = useState<{
     photos: ChatPhoto[];
@@ -145,6 +165,7 @@ export default function GroupChatScreen({ navigation, route }: Props) {
     dispatch(markRead({ activityId: activity.id, at: Date.now() }));
   }, [thread, activity.id, dispatch]);
 
+  const [keyboardShown, setKeyboardShown] = useState(false);
   useEffect(() => {
     const show = Keyboard.addListener('keyboardWillShow', () =>
       setKeyboardShown(true),
@@ -186,21 +207,109 @@ export default function GroupChatScreen({ navigation, route }: Props) {
     [activity.id, dispatch],
   );
 
-  const jumpTo = useCallback(
-    (messageId: string) => {
-      const index = rows.findIndex(row => row.key === messageId);
-      if (index < 0) {
-        return;
-      }
-      listRef.current?.scrollToIndex({ index, viewPosition: 0.5 });
-      setHighlightId(messageId);
-    },
-    [rows],
-  );
+  // Reads the rows through a ref, so a new message doesn't hand every row a
+  // new callback (and re-render them all).
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const jumpTo = useCallback((messageId: string) => {
+    const index = rowsRef.current.findIndex(row => row.key === messageId);
+    if (index < 0) {
+      return;
+    }
+    listRef.current?.scrollToIndex({ index, viewPosition: 0.5 });
+    setHighlightId(messageId);
+  }, []);
 
   const openPhoto = useCallback(
     (photos: ChatPhoto[], index: number) => setViewer({ photos, index }),
     [],
+  );
+  const [playing, setPlaying] = useState<ChatVideo | null>(null);
+  const openVideo = useCallback((video: ChatVideo) => setPlaying(video), []);
+
+  /**
+   * Photos or a clip from the chat gallery: shown in the chat at once, as
+   * picked and marked as sending, then swapped for the compressed copies
+   * (which are what a server would get).
+   */
+  const sendMedia = (pick: ChatPick) => {
+    const id = dispatch(
+      sendChatMessage(activity.id, {
+        photos: pick.photos?.map(uri => ({ uri })),
+        video: pick.video && { ...pick.video, posterUri: pick.video.uri },
+        replyToId: replyTo?.id,
+        status: 'sending',
+      }),
+    );
+    setReplyTo(null);
+    const ref = { activityId: activity.id, messageId: id };
+    Promise.all([
+      prepareChatMedia(pick),
+      new Promise<void>(resolve => setTimeout(resolve, MIN_SENDING_MS)),
+    ]).then(
+      ([ready]) =>
+        dispatch(
+          updateMessage({ ...ref, patch: { ...ready, status: undefined } }),
+        ),
+      () => dispatch(updateMessage({ ...ref, patch: { status: 'failed' } })),
+    );
+  };
+  // Handed back by the chat gallery: sent once, then cleared.
+  const picked = route.params.picked;
+  useEffect(() => {
+    if (picked) {
+      navigation.setParams({ picked: undefined });
+      sendMedia(picked);
+    }
+    // Only for a new pick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picked?.key]);
+
+  // Stable, so the screen's own updates (keyboard, reply bar, menus) don't
+  // re-render every row.
+  const renderRow = useCallback(
+    ({ item }: { item: Row }) =>
+      item.kind === 'time' ? (
+        <Text style={[styles.timeLabel, item.mine && styles.timeLabelMine]}>
+          {item.label}
+        </Text>
+      ) : (
+        <MessageRow
+          message={item.message}
+          mine={item.mine}
+          groupStart={item.groupStart}
+          quoted={
+            item.message.replyToId
+              ? byId.get(item.message.replyToId)
+              : undefined
+          }
+          reported={reportedIds.includes(item.message.id)}
+          highlighted={highlightId === item.message.id}
+          styles={styles}
+          onLongPress={openMenu}
+          onReply={replyToMessage}
+          interactive={!ended}
+          onOpenPhoto={openPhoto}
+          onOpenVideo={openVideo}
+          onReact={ended ? noop : react}
+          onPressQuote={jumpTo}
+          memberIds={memberIdSet}
+        />
+      ),
+    [
+      styles,
+      byId,
+      reportedIds,
+      openMenu,
+      replyToMessage,
+      highlightId,
+      ended,
+      openPhoto,
+      openVideo,
+      react,
+      jumpTo,
+      memberIdSet,
+    ],
   );
 
   const openInfo = () =>
@@ -265,36 +374,13 @@ export default function GroupChatScreen({ navigation, route }: Props) {
           ref={listRef}
           inverted
           data={rows}
-          keyExtractor={row => row.key}
-          renderItem={({ item }) =>
-            item.kind === 'time' ? (
-              <Text
-                style={[styles.timeLabel, item.mine && styles.timeLabelMine]}
-              >
-                {item.label}
-              </Text>
-            ) : (
-              <MessageRow
-                message={item.message}
-                mine={item.mine}
-                groupStart={item.groupStart}
-                groupEnd={item.groupEnd}
-                quoted={
-                  item.message.replyToId
-                    ? byId.get(item.message.replyToId)
-                    : undefined
-                }
-                reported={reportedIds.includes(item.message.id)}
-                highlighted={highlightId === item.message.id}
-                styles={styles}
-                onLongPress={ended ? noop : setMenuFor}
-                onOpenPhoto={openPhoto}
-                onReact={ended ? noop : react}
-                onPressQuote={jumpTo}
-                memberIds={memberIdSet}
-              />
-            )
-          }
+          keyExtractor={rowKey}
+          renderItem={renderRow}
+          // Enough rows to fill the screen at once, rather than the top
+          // ones popping in a batch later.
+          initialNumToRender={20}
+          maxToRenderPerBatch={12}
+          windowSize={11}
           onScrollToIndexFailed={({ index, averageItemLength }) => {
             listRef.current?.scrollToOffset({
               offset: index * averageItemLength,
@@ -306,6 +392,8 @@ export default function GroupChatScreen({ navigation, route }: Props) {
             );
           }}
           contentContainerStyle={styles.list}
+          // A tap among the messages puts the sticker panel away.
+          onTouchStart={() => composerRef.current?.closeStickers()}
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -327,42 +415,72 @@ export default function GroupChatScreen({ navigation, route }: Props) {
           </View>
         ) : (
           <Composer
+            ref={composerRef}
             replyTo={replyTo}
             memberIds={memberIds}
             hostId={activity.hostId}
-            bottomPadding={
-              keyboardShown ? ms(8) : Math.max(insets.bottom, ms(10))
-            }
             styles={styles}
             onCancelReply={() => setReplyTo(null)}
             onSend={send}
+            onOpenGallery={() =>
+              navigation.navigate('ChatGallery', { activityId: activity.id })
+            }
+            bottomPadding={
+              keyboardShown ? ms(8) : Math.max(insets.bottom, ms(10))
+            }
           />
         )}
       </KeyboardAvoidingView>
 
-      <MessageActionSheet
-        message={menuFor}
-        reported={!!menuFor && reportedIds.includes(menuFor.id)}
+      <MessageReactionMenu
+        target={menu}
+        mine={menu?.message.senderId === ME}
+        reported={!!menu && reportedIds.includes(menu.message.id)}
         styles={styles}
-        onClose={() => setMenuFor(null)}
+        onClose={() => setMenu(null)}
         onReact={emoji => {
-          if (menuFor) {
-            react(menuFor, emoji);
+          if (menu) {
+            react(menu.message, emoji);
           }
-          setMenuFor(null);
+          setMenu(null);
         }}
         onReply={() => {
-          setReplyTo(menuFor);
-          setMenuFor(null);
+          setReplyTo(menu?.message ?? null);
+          setMenu(null);
         }}
         onReport={() => {
-          if (menuFor) {
-            dispatch(reportMessage(menuFor.id));
+          setReportFor(menu?.message ?? null);
+          setMenu(null);
+        }}
+      />
+
+      {/* Reporting: straight to the reasons. */}
+      <MessageActionSheet
+        message={reportFor}
+        startOn="report"
+        reported={!!reportFor && reportedIds.includes(reportFor.id)}
+        styles={styles}
+        onClose={() => setReportFor(null)}
+        onReact={emoji => {
+          if (reportFor) {
+            react(reportFor, emoji);
           }
-          setMenuFor(null);
+          setReportFor(null);
+        }}
+        onReply={() => {
+          setReplyTo(reportFor);
+          setReportFor(null);
+        }}
+        onReport={() => {
+          if (reportFor) {
+            dispatch(reportMessage(reportFor.id));
+          }
+          setReportFor(null);
           Alert.alert(t('chat.reportSentTitle'), t('chat.reportSentMessage'));
         }}
       />
+
+      <VideoViewer video={playing} onClose={() => setPlaying(null)} />
 
       <PhotoViewer
         photos={viewer?.photos ?? []}

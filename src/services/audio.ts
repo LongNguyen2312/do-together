@@ -1,7 +1,27 @@
 import { PermissionsAndroid, Platform } from 'react-native';
-import { createSound } from 'react-native-nitro-sound';
+import {
+  AudioEncoderAndroidType,
+  createSound,
+  OutputFormatAndroidType,
+  type AudioSet,
+} from 'react-native-nitro-sound';
 
 type Sound = ReturnType<typeof createSound>;
+
+/**
+ * Voice notes as AAC in .m4a, mono at 64 kbps: about 0.5 MB a minute, plenty
+ * for speech (docs/BACKEND_SPEC.md, section 1.4).
+ */
+const VOICE_FORMAT: AudioSet = {
+  AVFormatIDKeyIOS: 'aac',
+  AVNumberOfChannelsKeyIOS: 1,
+  AVSampleRateKeyIOS: 44100,
+  OutputFormatAndroid: OutputFormatAndroidType.MPEG_4,
+  AudioEncoderAndroid: AudioEncoderAndroidType.AAC,
+  AudioChannels: 1,
+  AudioSamplingRate: 44100,
+  AudioEncodingBitRate: 64000,
+};
 
 /**
  * Voice messages: one recorder and one player for the whole app, so starting
@@ -29,7 +49,7 @@ export async function startRecording(onTick: (elapsedMs: number) => void) {
   const sound = getRecorder();
   sound.setSubscriptionDuration(0.1);
   sound.addRecordBackListener(meta => onTick(meta.currentPosition));
-  await sound.startRecorder();
+  await sound.startRecorder(undefined, VOICE_FORMAT);
 }
 
 /** Resolves with the recorded file's uri. */

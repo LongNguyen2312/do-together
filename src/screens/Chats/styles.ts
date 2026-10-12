@@ -78,18 +78,34 @@ export function createStyles(colors: AppColors) {
       justifyContent: 'center',
       backgroundColor: `${colors.primary}D9`,
     },
-    storyAddBadge: {
-      position: 'absolute',
-      right: ms(5),
-      bottom: ms(5),
-      width: ms(20),
-      height: ms(20),
-      borderRadius: ms(10),
-    },
     // Bundled images otherwise keep their full pixel size.
     storyImage: {
       width: '100%',
       height: '100%',
+    },
+    // Who posted it, over the corner of their story's first photo.
+    storyAvatar: {
+      position: 'absolute',
+      top: ms(6),
+      left: ms(6),
+      width: ms(22),
+      height: ms(22),
+      borderRadius: ms(11),
+      borderWidth: ms(1.5),
+      borderColor: colors.white,
+    },
+    storyAvatarMine: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+    },
+    storyAvatarInitials: {
+      fontSize: fs(9),
+      fontFamily: fonts.bold,
+      color: colors.white,
+    },
+    storyAvatarUnseen: {
+      borderColor: colors.primary,
     },
     storyDivider: {
       alignSelf: 'stretch',

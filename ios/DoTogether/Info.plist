@@ -41,13 +41,15 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string/>
 	<key>NSCameraUsageDescription</key>
-	<string>Take photos to share in your group chats.</string>
+	<string>Take photos and videos to share in your stories and group chats.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Record voice messages for your group chats.</string>
+	<string>Record voice messages, and the sound of videos for your stories.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Save photos from your group chats.</string>
+	<key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Choose a photo for your custom activity.</string>
+	<string>Choose photos and videos for your stories, chats and activities.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

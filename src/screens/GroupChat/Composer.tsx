@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from 'react';
 import {
   Alert,
   Image,
@@ -13,16 +19,19 @@ import {
   isLiquidGlassSupported,
   LiquidGlassView,
 } from '@callstack/liquid-glass';
-import {
-  launchCamera,
-  launchImageLibrary,
-  type ImagePickerResponse,
-} from 'react-native-image-picker';
 import { useTranslation } from 'react-i18next';
+import Reanimated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { ms } from 'react-native-size-matters';
+import { scheduleOnRN } from 'react-native-worklets';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import PulseDot from '@/components/PulseDot';
+import StickerIcon from '@/components/StickerIcon';
 import { canRecord, startRecording, stopRecording } from '@/services/audio';
 import { splitMentions } from '@/services/chat';
 import { getUser } from '@/services/mockData';
@@ -33,13 +42,15 @@ import { formatDuration } from '@/utils/format';
 
 import { useMessagePreview, useSenderName } from './MessageRow';
 import StickerPanel from './StickerPanel';
-import type { GroupChatStyles } from './styles';
+import { STICKER_PANEL_SPACE, type GroupChatStyles } from './styles';
 
-const MAX_PHOTOS = 10;
-const PHOTO_MAX_SIZE = 1600;
 /** Shorter clips are treated as accidental taps and dropped. */
 const MIN_VOICE_MS = 1000;
 const MAX_MENTION_OPTIONS = 5;
+/** The sticker panel sliding in or out, the field moving with it. */
+const PANEL_SLIDE = { duration: 250, easing: Easing.out(Easing.cubic) };
+/** After the screen's slid in, when the panel's built ahead of use. */
+const PANEL_PREBUILD_MS = 800;
 /** The `@query` being typed right before the cursor. */
 const MENTION_QUERY = /(?:^|\s)@([^\s@]*)$/;
 
@@ -60,6 +71,14 @@ interface Props {
   styles: GroupChatStyles;
   onCancelReply: () => void;
   onSend: (draft: Omit<ChatDraft, 'replyToId'>) => void;
+  /** The picture button: the chat gallery, for photos or a clip. */
+  onOpenGallery: () => void;
+  ref?: Ref<ComposerHandle>;
+}
+
+export interface ComposerHandle {
+  /** Puts the sticker panel away, e.g. on a tap among the messages. */
+  closeStickers: () => void;
 }
 
 export default function Composer({
@@ -70,6 +89,8 @@ export default function Composer({
   styles,
   onCancelReply,
   onSend,
+  onOpenGallery,
+  ref,
 }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
@@ -84,7 +105,87 @@ export default function Composer({
   const liveTaggedIds = taggedIds.filter(id =>
     draft.includes(getUser(id).name),
   );
+  /** The sticker button's state: the panel is open, or opening. */
   const [stickersOpen, setStickersOpen] = useState(false);
+  /**
+   * The panel's been opened, and is kept from then on (hidden when shut):
+   * building its animated stickers again each time would hold up the slide.
+   */
+  const [panelBuilt, setPanelBuilt] = useState(false);
+  /**
+   * Its animated stickers run, once it's slid open, and stop once it's slid
+   * shut: starting or stopping them mid-slide would hold the slide up.
+   */
+  const [stickersPlaying, setStickersPlaying] = useState(false);
+  const stickersOpenRef = useRef(stickersOpen);
+  stickersOpenRef.current = stickersOpen;
+  /**
+   * The panel's room under the field. Shut, it's the field's own bottom
+   * padding, which the panel takes over: so nothing jumps as it comes or goes.
+   */
+  const panelRoom = useSharedValue(0);
+  const panelRoomStyle = useAnimatedStyle(() => ({
+    height: panelRoom.value,
+  }));
+  // Out of sight once it's slid shut, rather than peeking over the padding.
+  const panelStyle = useAnimatedStyle(() => ({
+    opacity: panelRoom.value > bottomPadding + 0.5 ? 1 : 0,
+  }));
+  // Built shortly after the chat opens (hidden, its stickers still), so even
+  // the first slide has nothing to build.
+  useEffect(() => {
+    const timer = setTimeout(() => setPanelBuilt(true), PANEL_PREBUILD_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  // Shut, the room is the field's padding, which shrinks with the keyboard up.
+  useEffect(() => {
+    if (!stickersOpenRef.current) {
+      panelRoom.value = bottomPadding;
+    }
+  }, [bottomPadding, panelRoom]);
+
+  /** Shows or hides the panel at once, as the keyboard comes or goes. */
+  const setStickersNow = (open: boolean) => {
+    panelRoom.value = open ? STICKER_PANEL_SPACE : bottomPadding;
+    setStickersOpen(open);
+    setStickersPlaying(open);
+    if (open) {
+      setPanelBuilt(true);
+    }
+  };
+
+  /**
+   * Opens or closes the panel. With the keyboard down it slides, the field
+   * moving with it; with it up, the keyboard's own animation moves things.
+   */
+  const slideStickers = (open: boolean) => {
+    if (open === stickersOpenRef.current) {
+      return;
+    }
+    if (Keyboard.isVisible()) {
+      setStickersNow(open);
+      return;
+    }
+    setStickersOpen(open);
+    setPanelBuilt(true);
+    panelRoom.value = withTiming(
+      open ? STICKER_PANEL_SPACE : bottomPadding,
+      PANEL_SLIDE,
+      finished => {
+        // Not if it was turned back meanwhile (that cut this short).
+        if (finished) {
+          scheduleOnRN(setStickersPlaying, open);
+        }
+      },
+    );
+  };
+  const slideStickersRef = useRef(slideStickers);
+  slideStickersRef.current = slideStickers;
+  useImperativeHandle(
+    ref,
+    () => ({ closeStickers: () => slideStickersRef.current(false) }),
+    [],
+  );
   const [recordingMs, setRecordingMs] = useState<number | null>(null);
   const recording = recordingMs !== null;
   const recordingRef = useRef(false);
@@ -117,78 +218,18 @@ export default function Composer({
     }
   };
 
-  const onPicked = (result: ImagePickerResponse) => {
-    if (result.didCancel) {
-      return;
-    }
-    if (result.errorCode) {
-      Alert.alert(
-        t('chat.photoErrorTitle'),
-        result.errorCode === 'camera_unavailable'
-          ? t('chat.cameraUnavailable')
-          : result.errorCode === 'permission'
-          ? t('chat.photoPermission')
-          : result.errorMessage,
-      );
-      return;
-    }
-    const photos = (result.assets ?? [])
-      .map(asset => asset.uri)
-      .filter((uri): uri is string => !!uri)
-      .map(uri => ({ uri }));
-    if (photos.length > 0) {
-      onSend({ photos });
-    }
-  };
-
-  const pickPhotos = async () => {
-    Keyboard.dismiss();
-    onPicked(
-      await launchImageLibrary({
-        mediaType: 'photo',
-        selectionLimit: MAX_PHOTOS,
-        maxWidth: PHOTO_MAX_SIZE,
-        maxHeight: PHOTO_MAX_SIZE,
-        quality: 0.8,
-      }),
-    );
-  };
-
-  const takePhoto = async () => {
-    Keyboard.dismiss();
-    onPicked(
-      await launchCamera({
-        mediaType: 'photo',
-        maxWidth: PHOTO_MAX_SIZE,
-        maxHeight: PHOTO_MAX_SIZE,
-        quality: 0.8,
-      }),
-    );
-  };
-
-  const choosePhotoSource = () => {
-    Keyboard.dismiss();
-    Alert.alert(t('chat.photoSourceTitle'), undefined, [
-      { text: t('chat.camera'), onPress: takePhoto },
-      { text: t('chat.attach'), onPress: pickPhotos },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
-  };
-
   const toggleStickers = () => {
-    if (stickersOpen) {
-      setStickersOpen(false);
-    } else {
+    if (!stickersOpen && Keyboard.isVisible()) {
       Keyboard.dismiss();
-      setStickersOpen(true);
     }
+    slideStickers(!stickersOpen);
   };
 
   const sendSticker = (sticker: Sticker) => onSend({ stickerId: sticker.id });
 
   const startVoice = async () => {
     Keyboard.dismiss();
-    setStickersOpen(false);
+    setStickersNow(false);
     if (!(await canRecord())) {
       Alert.alert(t('chat.micDeniedTitle'), t('chat.micDeniedMessage'));
       return;
@@ -260,7 +301,7 @@ export default function Composer({
     <View
       style={[
         styles.composerWrap,
-        !stickersOpen && { paddingBottom: bottomPadding },
+        !panelBuilt && { paddingBottom: bottomPadding },
       ]}
     >
       {replyTo ? (
@@ -358,10 +399,12 @@ export default function Composer({
                 )}
                 accessibilityState={{ expanded: stickersOpen }}
               >
-                <Icon
-                  name={stickersOpen ? 'happy' : 'happy-outline'}
-                  size={ms(21)}
+                {/* Filled while the panel's open. */}
+                <StickerIcon
+                  size={ms(23)}
+                  filled={stickersOpen}
                   color={stickersOpen ? colors.primary : colors.textMuted}
+                  contrast={colors.white}
                 />
               </Pressable>
               <TextInput
@@ -370,7 +413,7 @@ export default function Composer({
                 onSelectionChange={event =>
                   setCursor(event.nativeEvent.selection.start)
                 }
-                onFocus={() => setStickersOpen(false)}
+                onFocus={() => setStickersNow(false)}
                 placeholder={t('chat.placeholder')}
                 placeholderTextColor={colors.textMuted}
                 style={styles.input}
@@ -391,14 +434,14 @@ export default function Composer({
                 )}
               </TextInput>
               <Pressable
-                onPress={choosePhotoSource}
+                onPress={onOpenGallery}
                 hitSlop={6}
                 accessibilityRole="button"
-                accessibilityLabel={t('chat.photoSourceTitle')}
+                accessibilityLabel={t('chat.addMedia')}
               >
                 <Icon
-                  name="camera-outline"
-                  size={ms(20)}
+                  name="images-outline"
+                  size={ms(22)}
                   color={colors.textMuted}
                 />
               </Pressable>
@@ -424,8 +467,17 @@ export default function Composer({
           />
         </Pressable>
       </View>
-      {stickersOpen ? (
-        <StickerPanel styles={styles} onPick={sendSticker} />
+      {/* Once built, the panel's room also stands in for the padding. */}
+      {panelBuilt ? (
+        <Reanimated.View style={[styles.stickerRoom, panelRoomStyle]}>
+          <Reanimated.View style={panelStyle}>
+            <StickerPanel
+              styles={styles}
+              onPick={sendSticker}
+              playing={stickersPlaying}
+            />
+          </Reanimated.View>
+        </Reanimated.View>
       ) : null}
     </View>
   );

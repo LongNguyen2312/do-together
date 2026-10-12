@@ -76,6 +76,9 @@ jest.mock('react-native-blob-util', () => ({
 
 jest.mock('react-native-nitro-sound', () => ({
   createSound: jest.fn(),
+  // Recording format enums used by services/audio.ts.
+  OutputFormatAndroidType: { MPEG_4: 2 },
+  AudioEncoderAndroidType: { AAC: 3 },
 }));
 
 jest.mock('lottie-react-native', () => 'LottieView');
@@ -83,4 +86,44 @@ jest.mock('lottie-react-native', () => 'LottieView');
 jest.mock('react-native-splash-view', () => ({
   hideSplash: jest.fn(),
   showSplash: jest.fn(),
+}));
+
+// Native compression: hand back the same file, as if already small.
+jest.mock('react-native-compressor', () => ({
+  Image: { compress: jest.fn(uri => Promise.resolve(uri)) },
+  Video: {
+    compress: jest.fn(uri => Promise.resolve(uri)),
+    cancelCompression: jest.fn(),
+  },
+  createVideoThumbnail: jest.fn(uri =>
+    Promise.resolve({
+      path: uri,
+      size: 0,
+      mime: 'image/jpeg',
+      width: 0,
+      height: 0,
+    }),
+  ),
+}));
+
+jest.mock('react-native-vision-camera', () => {
+  const permission = {
+    status: 'authorized',
+    hasPermission: true,
+    canRequestPermission: false,
+    requestPermission: jest.fn(() => Promise.resolve(true)),
+  };
+  return {
+    Camera: () => null,
+    CommonResolutions: { FHD_16_9: { width: 1080, height: 1920 } },
+    useCameraDevice: () => undefined,
+    useCameraPermission: () => permission,
+    useMicrophonePermission: () => permission,
+    usePhotoOutput: () => ({}),
+    useVideoOutput: () => ({}),
+  };
+});
+
+jest.mock('react-native-nitro-image', () => ({
+  NativeNitroImage: () => null,
 }));

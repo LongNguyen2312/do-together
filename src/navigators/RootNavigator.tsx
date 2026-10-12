@@ -6,6 +6,7 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { withModalRoots } from '@/components/ModalScreenRoot';
 import MainTabNavigator from '@/navigators/MainTabNavigator';
 import ActivitiesScreen from '@/screens/Activities';
 import ActivityDetailScreen from '@/screens/ActivityDetail';
@@ -22,10 +23,18 @@ import ImFreeScreen from '@/screens/ImFree';
 import LoginScreen from '@/screens/Login';
 import OnboardingScreen from '@/screens/Onboarding';
 import SignUpScreen from '@/screens/SignUp';
+import StoryCameraScreen from '@/screens/StoryCamera';
+import StoryEditorScreen from '@/screens/StoryEditor';
+import MediaGalleryScreen from '@/screens/MediaGallery';
 import StoryViewerScreen from '@/screens/StoryViewer';
 import { useAppSelector } from '@/store/hooks';
 import { useTheme } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
+
+// Native modals: they need their own gesture and dialog roots.
+const StoryCameraModal = withModalRoots(StoryCameraScreen);
+const StoryEditorModal = withModalRoots(StoryEditorScreen);
+const StoryViewerModal = withModalRoots(StoryViewerScreen);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -69,9 +78,50 @@ export default function RootNavigator() {
       <Stack.Screen name="HotActivities" component={HotActivitiesScreen} />
       <Stack.Screen name="Communities" component={CommunitiesScreen} />
       <Stack.Screen
+        name="StoryGallery"
+        component={MediaGalleryScreen}
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen
+        name="ChatGallery"
+        component={MediaGalleryScreen}
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen
+        name="StoryCamera"
+        component={StoryCameraModal}
+        // Sideways swipes change the filter.
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="StoryEditor"
+        component={StoryEditorModal}
+        // Swiping it away would lose the edits without asking.
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
         name="StoryViewer"
-        component={StoryViewerScreen}
-        options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+        component={StoryViewerModal}
+        // See-through, so a pull down to close reveals the screen beneath.
+        options={{
+          presentation: 'transparentModal',
+          animation: 'fade',
+          contentStyle: { backgroundColor: 'transparent' },
+        }}
       />
     </Stack.Group>
   );

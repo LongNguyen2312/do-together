@@ -23,6 +23,7 @@ import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import PrimaryButton from '@/components/PrimaryButton';
+import { compressPhotoToDataUri } from '@/services/media';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
 import type { CustomActivity } from '@/types/broadcast';
 
@@ -138,18 +139,20 @@ export default function CustomActivitySheet({
     const result = await launchImageLibrary({
       mediaType: 'photo',
       selectionLimit: 1,
-      maxWidth: PHOTO_MAX_SIZE,
-      maxHeight: PHOTO_MAX_SIZE,
-      quality: 0.7,
-      includeBase64: true,
     });
     if (result.errorCode) {
       Alert.alert(t('imFree.custom.photoErrorTitle'), result.errorMessage);
       return;
     }
-    const asset = result.assets?.[0];
-    if (asset?.base64) {
-      setImage(`data:${asset.type ?? 'image/jpeg'};base64,${asset.base64}`);
+    const uri = result.assets?.[0]?.uri;
+    if (!uri) {
+      return;
+    }
+    // Kept in the store as a data uri, so it's kept small.
+    try {
+      setImage(await compressPhotoToDataUri(uri, PHOTO_MAX_SIZE));
+    } catch {
+      Alert.alert(t('imFree.custom.photoErrorTitle'));
     }
   };
 

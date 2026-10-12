@@ -1,0 +1,29 @@
+diff --git a/node_modules/react-native-compressor/ios/Image/ImageCompressorOptions.swift b/node_modules/react-native-compressor/ios/Image/ImageCompressorOptions.swift
+index d45b88d..dda6355 100644
+--- a/node_modules/react-native-compressor/ios/Image/ImageCompressorOptions.swift
++++ b/node_modules/react-native-compressor/ios/Image/ImageCompressorOptions.swift
+@@ -24,18 +24,20 @@ class ImageCompressorOptions: NSObject {
+             return options
+         }
+         
++        // Numbers from JS arrive as doubles: read them through NSNumber, or
++        // `as? Int` fails and every size falls back to 1280.
+         for (key, value) in dictionary {
+             switch key {
+             case "compressionMethod":
+                 options.autoCompress = (value as? String ?? "") != "manual"
+             case "maxWidth":
+-                options.maxWidth = (value as? Int) ?? 1280
++                options.maxWidth = (value as? NSNumber)?.intValue ?? 1280
+             case "maxHeight":
+-                options.maxHeight = (value as? Int) ?? 1280
++                options.maxHeight = (value as? NSNumber)?.intValue ?? 1280
+             case "progressDivider":
+-                options.progressDivider = (value as? Int) ?? 0
++                options.progressDivider = (value as? NSNumber)?.intValue ?? 0
+             case "quality":
+-                options.quality = (value as? Float) ?? 0.8
++                options.quality = (value as? NSNumber)?.floatValue ?? 0.8
+             case "input":
+                 options.parseInput(value as? String)
+             case "output":

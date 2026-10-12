@@ -18,6 +18,14 @@ export interface ChatVoice {
   durationMs: number;
 }
 
+/** A clip of up to 10 seconds, sent on its own. */
+export interface ChatVideo {
+  uri: string;
+  durationMs: number;
+  /** Its first frame; made when it's compressed. */
+  posterUri?: string;
+}
+
 export interface ChatMessage {
   id: string;
   senderId: string;
@@ -25,6 +33,7 @@ export interface ChatMessage {
   sentAt: number;
   text?: string;
   photos?: ChatPhoto[];
+  video?: ChatVideo;
   voice?: ChatVoice;
   /** Id from the built-in sticker packs. */
   stickerId?: string;
@@ -32,13 +41,36 @@ export interface ChatMessage {
   /** Members tagged in `text`, which holds their full names. */
   mentionIds?: string[];
   reactions?: ChatReaction[];
+  /**
+   * The user's own photos or video, shown at once while they're compressed
+   * (`sending`), or if that failed.
+   */
+  status?: 'sending' | 'failed';
 }
 
 /** What the composer sends; the rest is filled in by the store. */
 export type ChatDraft = Pick<
   ChatMessage,
-  'text' | 'photos' | 'voice' | 'stickerId' | 'replyToId' | 'mentionIds'
+  | 'text'
+  | 'photos'
+  | 'video'
+  | 'voice'
+  | 'stickerId'
+  | 'replyToId'
+  | 'mentionIds'
+  | 'status'
 >;
+
+/**
+ * What the chat gallery hands back: up to 5 photos, or one clip. Files as
+ * picked (`ph://`, `content://` or a camera file), not yet compressed.
+ */
+export interface ChatPick {
+  /** New for every pick, so the same one isn't sent twice. */
+  key: number;
+  photos?: string[];
+  video?: { uri: string; durationMs: number };
+}
 
 export type ReportReason =
   | 'spam'

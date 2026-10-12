@@ -24,9 +24,11 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import AppHeader from '@/components/AppHeader';
 import { useTabBarInset } from '@/components/LiquidTabBar';
 import PulseDot from '@/components/PulseDot';
-import { usePostStory, useStories } from '@/hooks/useStories';
+import { StoryThumb } from '@/components/StoryMedia';
+import { useNewStory, useStories } from '@/hooks/useStories';
 import { useMessagePreview } from '@/screens/GroupChat/MessageRow';
 import { chatMemberIds } from '@/services/chat';
+import { firstUnseenIndex } from '@/services/stories';
 import { chatBackground } from '@/screens/GroupChat/styles';
 import {
   activityStatus,
@@ -44,7 +46,7 @@ import type {
 } from '@/types/activity';
 import { ME, type ChatMessage } from '@/types/chat';
 import type { MainTabParamList, RootStackParamList } from '@/types/navigation';
-import { clockIn, normalizeSearch } from '@/utils/format';
+import { clockIn, initialsOf, normalizeSearch } from '@/utils/format';
 
 import { createStyles, type ChatsStyles } from './styles';
 
@@ -78,6 +80,7 @@ export default function ChatsScreen({ navigation }: Props) {
 
   const joinedIds = useAppSelector(state => state.activity.joinedIds);
   const chat = useAppSelector(state => state.chat);
+  const myName = useAppSelector(state => state.auth.user?.displayName);
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
 
@@ -166,10 +169,23 @@ export default function ChatsScreen({ navigation }: Props) {
       (!search ||
         searchIndex.get(item.activity.id)?.some(text => text.includes(search))),
   );
-  const { mine: myStories, friends: friendStories } = useStories();
-  const addStory = usePostStory();
-  const openStories = (userIds: string[], startIndex: number) =>
-    navigation.navigate('StoryViewer', { userIds, startIndex });
+  const {
+    mine: myStories,
+    friends: friendStories,
+    seenIds: seenStoryIds,
+  } = useStories();
+  const addStory = useNewStory();
+  // One run through everyone's stories, the user's own first, so watching
+  // goes on from one person to the next.
+  const storyUserIds = [
+    ...(myStories.length ? [ME] : []),
+    ...friendStories.map(group => group.userId),
+  ];
+  const openStories = (userId: string) =>
+    navigation.navigate('StoryViewer', {
+      userIds: storyUserIds,
+      startIndex: storyUserIds.indexOf(userId),
+    });
 
   const openChat = (activityId: string) =>
     navigation.navigate('GroupChat', { activityId });
@@ -205,58 +221,74 @@ export default function ChatsScreen({ navigation }: Props) {
           contentContainerStyle={styles.storiesContent}
         >
           <Pressable
-            onPress={myStories.length ? () => openStories([ME], 0) : addStory}
+            onPress={addStory}
             style={styles.story}
             accessibilityRole="button"
-            accessibilityLabel={
-              myStories.length ? t('stories.yourStory') : t('stories.addTitle')
-            }
+            accessibilityLabel={t('stories.addTitle')}
           >
-            {myStories.length ? (
-              <View style={styles.storyTile}>
-                <Image
-                  source={myStories[myStories.length - 1].photo}
-                  style={styles.storyImage}
-                />
-                <Pressable
-                  onPress={addStory}
-                  hitSlop={ms(6)}
-                  style={[styles.storyAddCircle, styles.storyAddBadge]}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('stories.addTitle')}
-                >
-                  <Icon name="add" size={ms(14)} color={colors.white} />
-                </Pressable>
+            <View style={[styles.storyTile, styles.storyAdd]}>
+              <View style={styles.storyAddCircle}>
+                <Icon name="add" size={ms(16)} color={colors.white} />
               </View>
-            ) : (
-              <View style={[styles.storyTile, styles.storyAdd]}>
-                <View style={styles.storyAddCircle}>
-                  <Icon name="add" size={ms(16)} color={colors.white} />
-                </View>
-              </View>
-            )}
+            </View>
             <Text style={styles.storyLabel} numberOfLines={1}>
-              {t('chat.you')}
+              {t('stories.add')}
             </Text>
           </Pressable>
+          {/* Its own item once there's a story; new ones join it. */}
+          {myStories.length ? (
+            <Pressable
+              onPress={() => openStories(ME)}
+              style={styles.story}
+              accessibilityRole="button"
+              accessibilityLabel={t('stories.yourStory')}
+            >
+              <View style={styles.storyTile}>
+                <StoryThumb
+                  media={myStories[myStories.length - 1].media}
+                  filter={myStories[myStories.length - 1].filter}
+                  style={styles.storyImage}
+                />
+                {/* No profile photo yet: their initials, like a friend's face. */}
+                <View style={[styles.storyAvatar, styles.storyAvatarMine]}>
+                  <Text style={styles.storyAvatarInitials}>
+                    {initialsOf(myName || t('chat.you'))}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.storyLabel} numberOfLines={1}>
+                {t('chat.you')}
+              </Text>
+            </Pressable>
+          ) : null}
           {friendStories.length ? <View style={styles.storyDivider} /> : null}
-          {friendStories.map((group, i) => {
+          {friendStories.map(group => {
             const friend = getUser(group.userId);
+            // The story the viewer opens on: the first unseen, else the first.
+            const cover =
+              group.stories[firstUnseenIndex(group.stories, seenStoryIds)];
             return (
               <Pressable
                 key={group.userId}
-                onPress={() =>
-                  openStories(
-                    friendStories.map(item => item.userId),
-                    i,
-                  )
-                }
+                onPress={() => openStories(group.userId)}
                 style={styles.story}
                 accessibilityRole="button"
                 accessibilityLabel={friend?.name}
               >
                 <View style={styles.storyTile}>
-                  <Image source={friend?.avatar} style={styles.storyImage} />
+                  <StoryThumb
+                    media={cover.media}
+                    filter={cover.filter}
+                    style={styles.storyImage}
+                  />
+                  {/* Ringed in the brand colour while there's something new. */}
+                  <Image
+                    source={friend?.avatar}
+                    style={[
+                      styles.storyAvatar,
+                      group.unseen && styles.storyAvatarUnseen,
+                    ]}
+                  />
                 </View>
                 <Text style={styles.storyLabel} numberOfLines={1}>
                   {friend?.name}

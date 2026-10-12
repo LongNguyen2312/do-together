@@ -5,11 +5,21 @@ import { fonts, fs, type AppColors } from '@/theme';
 
 const SCREEN_PADDING = ms(16);
 const HEADER_AVATAR = ms(38);
-const AVATAR = ms(30);
+const AVATAR = ms(26);
+/** A reaction in the held-message bar. */
+const REACTION_OPTION = ms(44);
+const REACTION_BAR_PAD = ms(6);
+export const REACTION_BAR_WIDTH = REACTION_OPTION * 6 + REACTION_BAR_PAD * 2;
+export const REACTION_BAR_HEIGHT = REACTION_OPTION + REACTION_BAR_PAD * 2;
+/** Between the avatar column and the messages. */
+const ROW_GAP = ms(8);
 const INPUT_HEIGHT = ms(46);
 const PHOTO_WIDTH = ms(108);
 const PHOTO_HEIGHT = ms(136);
 const STICKER_PANEL_HEIGHT = ms(300);
+const STICKER_PANEL_GAP = ms(8);
+/** The panel's room under the message field, gap included. */
+export const STICKER_PANEL_SPACE = STICKER_PANEL_HEIGHT + STICKER_PANEL_GAP;
 export const STICKER_GRID_PADDING = ms(8);
 
 export type GroupChatStyles = ReturnType<typeof createStyles>;
@@ -101,14 +111,81 @@ export function createStyles(colors: AppColors) {
       textAlign: 'right',
     },
 
+    // Space above each message (more above a new run, see rowGroupStart).
+    rowWrap: {
+      marginTop: ms(4),
+    },
     row: {
       flexDirection: 'row',
-      alignItems: 'flex-end',
-      gap: ms(8),
-      marginTop: ms(4),
+      alignItems: 'flex-start',
+      gap: ROW_GAP,
     },
     rowMine: {
       justifyContent: 'flex-end',
+    },
+    // Held message: dimmed screen, reactions bar and actions card by it.
+    menuBackdrop: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: `${colors.black}40`,
+    },
+    reactionBar: {
+      position: 'absolute',
+      width: REACTION_BAR_WIDTH,
+      height: REACTION_BAR_HEIGHT,
+      padding: REACTION_BAR_PAD,
+      flexDirection: 'row',
+      borderRadius: REACTION_BAR_HEIGHT / 2,
+      backgroundColor: colors.card,
+      boxShadow: `0px 6px 20px ${colors.black}33`,
+    },
+    reactionOption: {
+      width: REACTION_OPTION,
+      height: REACTION_OPTION,
+      borderRadius: REACTION_OPTION / 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    reactionOptionOn: {
+      backgroundColor: colors.surfaceMuted,
+    },
+    reactionOptionPressed: {
+      transform: [{ scale: 1.25 }],
+    },
+    reactionOptionEmoji: {
+      fontSize: fs(27),
+    },
+    menuCard: {
+      position: 'absolute',
+      borderRadius: ms(14),
+      overflow: 'hidden',
+      backgroundColor: colors.card,
+      boxShadow: `0px 6px 20px ${colors.black}33`,
+    },
+    menuAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: ms(16),
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    menuActionText: {
+      fontSize: fs(15),
+      fontFamily: fonts.medium,
+    },
+
+    // The arrow that shows as a message is swiped to reply.
+    replyHint: {
+      position: 'absolute',
+      top: 0,
+      bottom: 0,
+      justifyContent: 'center',
+    },
+    replyHintTheirs: {
+      left: ms(6),
+    },
+    replyHintMine: {
+      right: ms(6),
     },
     rowGroupStart: {
       marginTop: ms(10),
@@ -120,6 +197,8 @@ export function createStyles(colors: AppColors) {
       width: AVATAR,
       height: AVATAR,
       borderRadius: AVATAR / 2,
+      // A touch below the top, beside the sender's name.
+      marginTop: ms(4),
     },
     content: {
       maxWidth: '78%',
@@ -132,25 +211,15 @@ export function createStyles(colors: AppColors) {
       paddingHorizontal: ms(14),
       paddingVertical: ms(9),
       borderRadius: ms(20),
+      // Nearly solid and outlined, to stand out on the tinted background
+      // while letting a little of it through.
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: `${colors.border}B3`,
-      backgroundColor: `${colors.card}C7`,
+      borderColor: colors.border,
+      backgroundColor: `${colors.card}8C`,
     },
     bubbleMine: {
       borderColor: 'transparent',
-      backgroundColor: `${colors.text}F2`,
-    },
-    bubbleGlassed: {
-      overflow: 'hidden',
-      borderColor: 'transparent',
-      backgroundColor: 'transparent',
-    },
-    bubbleGlass: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
+      backgroundColor: colors.text,
     },
     senderName: {
       marginBottom: ms(2),
@@ -176,6 +245,9 @@ export function createStyles(colors: AppColors) {
       height: PHOTO_HEIGHT + ms(16),
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    photoStackPair: {
+      width: PHOTO_WIDTH * 1.6,
     },
     photo: {
       position: 'absolute',
@@ -204,6 +276,9 @@ export function createStyles(colors: AppColors) {
       shadowRadius: ms(10),
       shadowOffset: { width: 0, height: ms(4) },
       elevation: 6,
+    },
+    photoFrontPair: {
+      right: 0,
     },
     photoFill: {
       width: '100%',
@@ -292,10 +367,6 @@ export function createStyles(colors: AppColors) {
       color: colors.background,
       opacity: 0.8,
     },
-    bubbleHighlighted: {
-      borderWidth: ms(2),
-      borderColor: colors.primary,
-    },
     senderNameOutside: {
       marginLeft: ms(4),
     },
@@ -345,12 +416,13 @@ export function createStyles(colors: AppColors) {
       paddingVertical: ms(4),
       borderRadius: ms(16),
     },
-    stickerHighlighted: {
-      backgroundColor: colors.primarySoft,
+    // Holds the panel; its height slides (see Composer), cutting it off.
+    stickerRoom: {
+      overflow: 'hidden',
     },
     stickerPanel: {
       height: STICKER_PANEL_HEIGHT,
-      marginTop: ms(8),
+      marginTop: STICKER_PANEL_GAP,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.border,
       backgroundColor: colors.card,
@@ -371,7 +443,7 @@ export function createStyles(colors: AppColors) {
       justifyContent: 'center',
     },
     stickerTabActive: {
-      backgroundColor: colors.surfaceMuted,
+      backgroundColor: colors.primarySoft,
     },
     stickerCredit: {
       marginTop: ms(24),
@@ -400,6 +472,46 @@ export function createStyles(colors: AppColors) {
       transform: [{ scale: 0.88 }],
     },
 
+    // Over media still being compressed to send.
+    sending: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: `${colors.black}59`,
+    },
+    // One spinner over a whole stack of photos being sent.
+    sendingSpinner: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    videoPlayCentre: {
+      ...StyleSheet.absoluteFill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    videoPlay: {
+      width: ms(52),
+      height: ms(52),
+      borderRadius: ms(26),
+      paddingLeft: ms(3),
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: `${colors.black}73`,
+    },
+    videoDuration: {
+      position: 'absolute',
+      right: ms(8),
+      bottom: ms(8),
+      paddingHorizontal: ms(6),
+      paddingVertical: ms(2),
+      borderRadius: ms(6),
+      overflow: 'hidden',
+      backgroundColor: `${colors.black}80`,
+      fontSize: fs(11),
+      fontFamily: fonts.semibold,
+      color: colors.white,
+    },
     photoSingle: {
       width: PHOTO_WIDTH * 1.7,
       height: PHOTO_HEIGHT * 1.3,

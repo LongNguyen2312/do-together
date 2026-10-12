@@ -1,12 +1,40 @@
-import { memo, useMemo } from 'react';
-import { Alert, Image, Pressable, Text, View } from 'react-native';
 import {
-  isLiquidGlassSupported,
-  LiquidGlassView,
-} from '@callstack/liquid-glass';
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  type ComponentRef,
+  type ReactNode,
+} from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
+import {
+  GestureDetector,
+  useCompetingGestures,
+  useLongPressGesture,
+  usePanGesture,
+  useTapGesture,
+} from 'react-native-gesture-handler';
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { useVoicePlayback } from '@/hooks/useVoicePlayback';
 import { toggleVoice } from '@/services/audio';
@@ -14,13 +42,35 @@ import { splitMentions } from '@/services/chat';
 import { getUser } from '@/services/mockData';
 import { getSticker } from '@/services/stickers';
 import { useTheme } from '@/theme';
-import { ME, type ChatMessage, type ChatPhoto } from '@/types/chat';
+import {
+  ME,
+  type ChatMessage,
+  type ChatPhoto,
+  type ChatVideo,
+} from '@/types/chat';
 import { formatDuration } from '@/utils/format';
 
-import StickerView from './StickerView';
+import StickerView from '@/components/StickerView';
+import type { MessageFrame } from './MessageReactionMenu';
 import type { GroupChatStyles } from './styles';
 
 const MAX_STACKED_PHOTOS = 3;
+/** A double tap's reaction, as on Messenger. */
+export const LIKE = '❤️';
+/** Held this long, a message opens its reactions. */
+const LONG_PRESS_MS = 350;
+/** Sideways travel before a drag starts swiping to reply. */
+const SWIPE_SLOP = ms(14);
+/** Swiped this far (and no further), letting go replies. */
+const REPLY_AT = ms(64);
+/** Jumped to from a reply, a message shakes once the list's scrolled there. */
+const SHAKE_DELAY_MS = 300;
+/** Each swing of the shake, side to side, smaller each time. */
+const SHAKE_SWINGS = [-8, 7, -5, 4, -2, 0].map(x => ms(x));
+const SHAKE_SWING_MS = 60;
+const SNAP_BACK = { damping: 22, stiffness: 300, mass: 0.7 };
+
+type TapGesture = ReturnType<typeof useTapGesture>;
 const WAVE_BARS = 26;
 const NAME_COLORS = ['#E8833A', '#2FA493', '#8E6CD8', '#D95C8A', '#4A90D9'];
 
@@ -41,6 +91,11 @@ export function useMessagePreview() {
   return (message: ChatMessage) => {
     if (message.text) {
       return message.text;
+    }
+    if (message.video) {
+      return `🎬 ${t('chat.video')} • ${formatDuration(
+        message.video.durationMs,
+      )}`;
     }
     if (message.voice) {
       return `🎤 ${t('chat.voice')} • ${formatDuration(
@@ -69,13 +124,18 @@ export interface MessageRowProps {
   message: ChatMessage;
   mine: boolean;
   groupStart: boolean;
-  groupEnd: boolean;
   quoted?: ChatMessage;
   reported: boolean;
   highlighted: boolean;
   styles: GroupChatStyles;
-  onLongPress: (message: ChatMessage) => void;
+  /** Held: its reactions and actions, by where it is on screen. */
+  onLongPress: (message: ChatMessage, frame: MessageFrame) => void;
+  /** Swiped sideways (right for others', left for the user's own). */
+  onReply: (message: ChatMessage) => void;
+  /** Off in a closed chat: no likes, reactions or replies. */
+  interactive: boolean;
   onOpenPhoto: (photos: ChatPhoto[], index: number) => void;
+  onOpenVideo: (video: ChatVideo) => void;
   onReact: (message: ChatMessage, emoji: string) => void;
   onPressQuote: (messageId: string) => void;
   /** The activity's members; only they are highlighted when tagged. */
@@ -86,178 +146,324 @@ function MessageRow({
   message,
   mine,
   groupStart,
-  groupEnd,
   quoted,
   reported,
   highlighted,
   styles,
   onLongPress,
+  onReply,
+  interactive,
   onOpenPhoto,
+  onOpenVideo,
   onReact,
   onPressQuote,
   memberIds,
 }: MessageRowProps) {
   const { t } = useTranslation();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const sender = mine ? null : getUser(message.senderId);
-  const longPress = () => onLongPress(message);
+  const contentRef = useRef<ComponentRef<typeof Animated.View>>(null);
+
+  // Held: the menu opens by the message, wherever it is on screen.
+  const openMenu = () =>
+    contentRef.current?.measureInWindow((x, y, width, height) =>
+      onLongPress(message, { x, y, width, height }),
+    );
+  const like = () => onReact(message, LIKE);
+  const reply = () => onReply(message);
+
+  // A double tap likes it (the heart shows with its reactions, under it).
+  const doubleTap = useTapGesture({
+    numberOfTaps: 2,
+    enabled: interactive,
+    onActivate: () => {
+      'worklet';
+      scheduleOnRN(like);
+    },
+  });
+  const hold = useLongPressGesture({
+    enabled: interactive,
+    minDuration: LONG_PRESS_MS,
+    onActivate: () => {
+      'worklet';
+      scheduleOnRN(openMenu);
+    },
+  });
+
+  // Swiped away from its side: others' to the right, the user's to the left.
+  const away = mine ? -1 : 1;
+  const swipeX = useSharedValue(0);
+  const swipe = usePanGesture({
+    enabled: interactive,
+    activeOffsetX: mine ? [-SWIPE_SLOP, 9999] : [-9999, SWIPE_SLOP],
+    failOffsetY: [-SWIPE_SLOP, SWIPE_SLOP],
+    onUpdate: event => {
+      'worklet';
+      // Only so far: at the reply point it stops.
+      swipeX.value =
+        away * Math.min(Math.max(event.translationX * away, 0), REPLY_AT);
+    },
+    onDeactivate: () => {
+      'worklet';
+      if (Math.abs(swipeX.value) >= REPLY_AT) {
+        scheduleOnRN(reply);
+      }
+      swipeX.value = withSpring(0, SNAP_BACK);
+    },
+  });
+  const gesture = useCompetingGestures(swipe, hold, doubleTap);
+
+  // Jumped to: a quick shake, and a little swell while it does.
+  const shake = useSharedValue(0);
+  const swell = useSharedValue(1);
+  useEffect(() => {
+    if (!highlighted) {
+      return;
+    }
+    const swing = (x: number) =>
+      withTiming(x, {
+        duration: SHAKE_SWING_MS,
+        easing: Easing.inOut(Easing.quad),
+      });
+    shake.value = withDelay(
+      SHAKE_DELAY_MS,
+      withSequence(...SHAKE_SWINGS.map(swing)),
+    );
+    swell.value = withDelay(
+      SHAKE_DELAY_MS,
+      withSequence(
+        withTiming(1.04, { duration: 140, easing: Easing.out(Easing.quad) }),
+        withTiming(1, { duration: 220, easing: Easing.inOut(Easing.quad) }),
+      ),
+    );
+  }, [highlighted, shake, swell]);
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shake.value }, { scale: swell.value }],
+  }));
+
+  const slideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeX.value }],
+  }));
+  // The reply arrow shows behind the message as it's swiped off.
+  const replyIconStyle = useAnimatedStyle(() => {
+    const pulled = Math.min(Math.abs(swipeX.value) / REPLY_AT, 1);
+    return {
+      opacity: pulled,
+      transform: [{ scale: interpolate(pulled, [0, 1], [0.5, 1]) }],
+    };
+  });
   const nameSender = groupStart ? sender : null;
   const sticker = message.stickerId ? getSticker(message.stickerId) : undefined;
 
   return (
-    <View
-      style={[
-        styles.row,
-        mine && styles.rowMine,
-        groupStart && styles.rowGroupStart,
-      ]}
-    >
-      {mine ? null : (
-        <View style={styles.avatarSlot}>
-          {groupEnd && sender ? (
-            <Image source={sender.avatar} style={styles.avatar} />
-          ) : null}
-        </View>
-      )}
-      <View style={[styles.content, mine && styles.contentMine]}>
-        {sticker ? (
-          <>
-            {nameSender ? (
-              <Text
-                style={[
-                  styles.senderName,
-                  styles.senderNameOutside,
-                  { color: nameColor(message.senderId) },
-                ]}
-                numberOfLines={1}
-              >
-                {nameSender.name}
-              </Text>
+    <View style={[styles.rowWrap, groupStart && styles.rowGroupStart]}>
+      {/* Behind the message, on the side it's swiped away from. */}
+      <Animated.View
+        style={[
+          styles.replyHint,
+          mine ? styles.replyHintMine : styles.replyHintTheirs,
+          replyIconStyle,
+        ]}
+        pointerEvents="none"
+      >
+        <Icon name="arrow-undo" size={ms(18)} color={colors.textSecondary} />
+      </Animated.View>
+      <Animated.View style={[styles.row, mine && styles.rowMine, slideStyle]}>
+        {mine ? null : (
+          // On the first message of a run, level with its top: the sender's
+          // name, inside the bubble or above photos and stickers.
+          <View style={styles.avatarSlot}>
+            {groupStart && sender ? (
+              <Image source={sender.avatar} style={styles.avatar} />
             ) : null}
-            {quoted ? (
-              <Quote
-                message={quoted}
-                mine={false}
-                styles={styles}
-                onPress={() => onPressQuote(quoted.id)}
-              />
-            ) : null}
-            <Pressable
-              onLongPress={longPress}
-              delayLongPress={280}
-              style={[styles.sticker, highlighted && styles.stickerHighlighted]}
-              accessibilityHint={t('chat.longPressHint')}
-            >
-              <StickerView sticker={sticker} size="message" />
-            </Pressable>
-          </>
-        ) : null}
-        {message.photos?.length ? (
-          <>
-            {nameSender ? (
-              <Text
-                style={[
-                  styles.senderName,
-                  styles.senderNameOutside,
-                  { color: nameColor(message.senderId) },
-                ]}
-                numberOfLines={1}
-              >
-                {nameSender.name}
-              </Text>
-            ) : null}
-            <PhotoStack
-              photos={message.photos}
-              styles={styles}
-              onOpen={index => onOpenPhoto(message.photos ?? [], index)}
-              onLongPress={longPress}
-            />
-          </>
-        ) : null}
-        {message.text || message.voice || (quoted && !sticker) ? (
-          <Pressable
-            onLongPress={longPress}
-            delayLongPress={280}
-            style={[
-              styles.bubble,
-              mine && styles.bubbleMine,
-              isLiquidGlassSupported && styles.bubbleGlassed,
-              highlighted && styles.bubbleHighlighted,
-            ]}
-            accessibilityHint={t('chat.longPressHint')}
+          </View>
+        )}
+        <GestureDetector gesture={gesture}>
+          <Animated.View
+            ref={contentRef}
+            style={[styles.content, mine && styles.contentMine, shakeStyle]}
+            accessibilityHint={
+              interactive ? t('chat.longPressHint') : undefined
+            }
           >
-            {isLiquidGlassSupported ? (
-              <LiquidGlassView
-                pointerEvents="none"
-                effect="regular"
-                colorScheme={isDark ? 'dark' : 'light'}
-                tintColor={mine ? `${colors.text}E6` : undefined}
-                style={styles.bubbleGlass}
-              />
+            {sticker ? (
+              <>
+                {nameSender ? (
+                  <Text
+                    style={[
+                      styles.senderName,
+                      styles.senderNameOutside,
+                      { color: nameColor(message.senderId) },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {nameSender.name}
+                  </Text>
+                ) : null}
+                {quoted ? (
+                  <Quote
+                    message={quoted}
+                    mine={false}
+                    styles={styles}
+                    onPress={() => onPressQuote(quoted.id)}
+                  />
+                ) : null}
+                <View style={styles.sticker}>
+                  <StickerView sticker={sticker} size="message" />
+                </View>
+              </>
             ) : null}
-            {nameSender && !message.photos?.length ? (
-              <Text
-                style={[
-                  styles.senderName,
-                  { color: nameColor(message.senderId) },
-                ]}
-                numberOfLines={1}
+            {message.photos?.length || message.video ? (
+              <>
+                {nameSender ? (
+                  <Text
+                    style={[
+                      styles.senderName,
+                      styles.senderNameOutside,
+                      { color: nameColor(message.senderId) },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {nameSender.name}
+                  </Text>
+                ) : null}
+                {message.video ? (
+                  <VideoTile
+                    video={message.video}
+                    sending={message.status === 'sending'}
+                    styles={styles}
+                    onOpen={() => message.video && onOpenVideo(message.video)}
+                    doubleTap={doubleTap}
+                  />
+                ) : (
+                  <PhotoStack
+                    photos={message.photos ?? []}
+                    sending={message.status === 'sending'}
+                    styles={styles}
+                    onOpen={index => onOpenPhoto(message.photos ?? [], index)}
+                    doubleTap={doubleTap}
+                  />
+                )}
+              </>
+            ) : null}
+            {message.text || message.voice || (quoted && !sticker) ? (
+              <View
+                // A plain see-through bubble, not liquid glass: a glass view per
+                // message appeared a beat after its row, so bubbles flickered in
+                // as rows were drawn (scrolling, new messages, the keyboard).
+                style={[styles.bubble, mine && styles.bubbleMine]}
               >
-                {nameSender.name}
-              </Text>
+                {nameSender && !message.photos?.length && !message.video ? (
+                  <Text
+                    style={[
+                      styles.senderName,
+                      { color: nameColor(message.senderId) },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {nameSender.name}
+                  </Text>
+                ) : null}
+                {quoted && !sticker ? (
+                  <Quote
+                    message={quoted}
+                    mine={mine}
+                    styles={styles}
+                    onPress={() => onPressQuote(quoted.id)}
+                  />
+                ) : null}
+                {message.voice ? (
+                  <VoiceClip message={message} mine={mine} styles={styles} />
+                ) : null}
+                {message.text ? (
+                  <MessageText
+                    text={message.text}
+                    mine={mine}
+                    mentionNames={(message.mentionIds ?? [])
+                      .filter(id => memberIds.has(id))
+                      .map(id => getUser(id).name)}
+                    styles={styles}
+                  />
+                ) : null}
+              </View>
             ) : null}
-            {quoted && !sticker ? (
-              <Quote
-                message={quoted}
-                mine={mine}
-                styles={styles}
-                onPress={() => onPressQuote(quoted.id)}
-              />
+            {message.reactions?.length ? (
+              <View style={styles.reactions}>
+                {message.reactions.map(reaction => (
+                  <Pressable
+                    key={reaction.emoji}
+                    onPress={() => onReact(message, reaction.emoji)}
+                    style={[
+                      styles.reaction,
+                      reaction.mine && styles.reactionMine,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: !!reaction.mine }}
+                  >
+                    <Text style={styles.reactionText}>
+                      {`${reaction.emoji} ${reaction.count}`}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             ) : null}
-            {message.voice ? (
-              <VoiceClip message={message} mine={mine} styles={styles} />
-            ) : null}
-            {message.text ? (
-              <MessageText
-                text={message.text}
-                mine={mine}
-                mentionNames={(message.mentionIds ?? [])
-                  .filter(id => memberIds.has(id))
-                  .map(id => getUser(id).name)}
-                styles={styles}
-              />
-            ) : null}
-          </Pressable>
-        ) : null}
-        {message.reactions?.length ? (
-          <View style={styles.reactions}>
-            {message.reactions.map(reaction => (
-              <Pressable
-                key={reaction.emoji}
-                onPress={() => onReact(message, reaction.emoji)}
-                style={[styles.reaction, reaction.mine && styles.reactionMine]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: !!reaction.mine }}
-              >
-                <Text style={styles.reactionText}>
-                  {`${reaction.emoji} ${reaction.count}`}
+            {message.status === 'failed' ? (
+              <View style={styles.reportedRow}>
+                <Icon name="alert-circle" size={ms(13)} color={colors.danger} />
+                <Text style={[styles.reportedText, { color: colors.danger }]}>
+                  {t('chat.sendFailed')}
                 </Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
-        {reported ? (
-          <View style={styles.reportedRow}>
-            <Icon name="flag" size={ms(11)} color={colors.textMuted} />
-            <Text style={styles.reportedText}>{t('chat.reported')}</Text>
-          </View>
-        ) : null}
-      </View>
+              </View>
+            ) : null}
+            {reported ? (
+              <View style={styles.reportedRow}>
+                <Icon name="flag" size={ms(11)} color={colors.textMuted} />
+                <Text style={styles.reportedText}>{t('chat.reported')}</Text>
+              </View>
+            ) : null}
+          </Animated.View>
+        </GestureDetector>
+      </Animated.View>
     </View>
   );
 }
 
 export default memo(MessageRow);
+
+/** A tap that waits to be sure it isn't half of a double tap (a like). */
+function TapTarget({
+  doubleTap,
+  onTap,
+  style,
+  label,
+  children,
+}: {
+  doubleTap: TapGesture;
+  onTap: () => void;
+  style: object;
+  label: string;
+  children: ReactNode;
+}) {
+  const tap = useTapGesture({
+    requireToFail: doubleTap,
+    onActivate: () => {
+      'worklet';
+      scheduleOnRN(onTap);
+    },
+  });
+  return (
+    <GestureDetector gesture={tap}>
+      <View
+        style={style}
+        accessible
+        accessibilityRole="imagebutton"
+        accessibilityLabel={label}
+      >
+        {children}
+      </View>
+    </GestureDetector>
+  );
+}
 
 function Quote({
   message,
@@ -387,29 +593,35 @@ function MessageText({
 
 function PhotoStack({
   photos,
+  sending,
   styles,
   onOpen,
-  onLongPress,
+  doubleTap,
 }: {
   photos: ChatPhoto[];
+  /** Still being compressed: all of them dimmed, with a spinner. */
+  sending: boolean;
   styles: GroupChatStyles;
   onOpen: (index: number) => void;
-  onLongPress: () => void;
+  /** The message's like: a tap waits to be sure it isn't one. */
+  doubleTap: TapGesture;
 }) {
   const { t } = useTranslation();
   const [front, left, right] = photos;
   const hidden = photos.length - MAX_STACKED_PHOTOS;
   const tile = (photo: ChatPhoto, index: number, style: object) => (
-    <Pressable
+    <TapTarget
       key={index}
-      onPress={() => onOpen(index)}
-      onLongPress={onLongPress}
-      delayLongPress={280}
+      doubleTap={doubleTap}
+      onTap={() => onOpen(index)}
       style={style}
-      accessibilityRole="imagebutton"
-      accessibilityLabel={t('chat.info.openPhoto', { index: index + 1 })}
+      label={t('chat.info.openPhoto', { index: index + 1 })}
     >
       <Image source={photo} style={styles.photoFill} />
+      {/* Every photo dims; one spinner over the lot (or the only one). */}
+      {sending ? (
+        <Sending styles={styles} spinner={photos.length === 1} />
+      ) : null}
       {index === 0 && hidden > 0 ? (
         <View style={styles.morePhotos}>
           <Text style={styles.morePhotosText}>
@@ -417,21 +629,98 @@ function PhotoStack({
           </Text>
         </View>
       ) : null}
-    </Pressable>
+    </TapTarget>
   );
 
   if (photos.length === 1) {
     return tile(front, 0, [styles.photoSingle]);
   }
+  // Two: the front one against the far edge, the other tilted behind it, so
+  // the pair sits flush with the side the message is on.
+  const pair = photos.length === 2;
   return (
-    <View style={styles.photoStack}>
+    <View style={[styles.photoStack, pair && styles.photoStackPair]}>
       {left !== undefined
         ? tile(left, 1, [styles.photo, styles.photoBack, styles.photoLeft])
         : null}
       {right !== undefined
         ? tile(right, 2, [styles.photo, styles.photoBack, styles.photoRight])
         : null}
-      {tile(front, 0, [styles.photo, styles.photoFront])}
+      {tile(front, 0, [
+        styles.photo,
+        styles.photoFront,
+        pair && styles.photoFrontPair,
+      ])}
+      {sending ? (
+        <View style={styles.sendingSpinner} pointerEvents="none">
+          <SendingSpinner />
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+/**
+ * Over a photo or clip that's still being compressed to send: dimmed, with a
+ * spinner unless one's shown over the whole stack.
+ */
+function Sending({
+  styles,
+  spinner = true,
+}: {
+  styles: GroupChatStyles;
+  spinner?: boolean;
+}) {
+  return (
+    <View style={styles.sending} pointerEvents="none">
+      {spinner ? <SendingSpinner /> : null}
+    </View>
+  );
+}
+
+function SendingSpinner() {
+  const { colors } = useTheme();
+  return <ActivityIndicator size="large" color={colors.white} />;
+}
+
+/** A clip: its first frame, a play button and its length. */
+function VideoTile({
+  video,
+  sending,
+  styles,
+  onOpen,
+  doubleTap,
+}: {
+  video: ChatVideo;
+  sending: boolean;
+  styles: GroupChatStyles;
+  onOpen: () => void;
+  doubleTap: TapGesture;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  return (
+    <TapTarget
+      doubleTap={doubleTap}
+      onTap={onOpen}
+      style={styles.photoSingle}
+      label={t('chat.playVideo')}
+    >
+      {video.posterUri ? (
+        <Image source={{ uri: video.posterUri }} style={styles.photoFill} />
+      ) : null}
+      {sending ? (
+        <Sending styles={styles} />
+      ) : (
+        <View style={styles.videoPlayCentre} pointerEvents="none">
+          <View style={styles.videoPlay}>
+            <Icon name="play" size={ms(26)} color={colors.white} />
+          </View>
+        </View>
+      )}
+      <Text style={styles.videoDuration}>
+        {formatDuration(video.durationMs)}
+      </Text>
+    </TapTarget>
   );
 }
