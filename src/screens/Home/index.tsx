@@ -8,7 +8,6 @@ import {
   useState,
 } from 'react';
 import {
-  Alert,
   Animated,
   Easing,
   Image,
@@ -57,6 +56,7 @@ import BottomSheet from '@/components/BottomSheet';
 import { useTabBarInset } from '@/components/LiquidTabBar';
 import PulseDot from '@/components/PulseDot';
 import { useCompassHeading } from '@/hooks/useCompassHeading';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useJoinActivity } from '@/hooks/useJoinActivity';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { joinActivity } from '@/store/slices/activitySlice';
@@ -83,6 +83,8 @@ import { clockIn, formatDistance } from '@/utils/format';
 
 import {
   CATEGORY_IDS,
+  matchesSearch,
+  searchTextsOf,
   boundsOf,
   centerOf,
   createClusterer,
@@ -478,14 +480,25 @@ export default function HomeScreen({ navigation, route }: Props) {
   // Set by the input's own touch, which bubbles before the screen's handler.
   const touchingSearch = useRef(false);
 
-  const activities = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return BROWSABLE.filter(
-      activity =>
-        (category === 'all' || activity.category === category) &&
-        (!needle || activity.title.toLowerCase().includes(needle)),
-    );
-  }, [category, query]);
+  // What each activity is found by (built once; names in every language).
+  const searchTexts = useMemo(
+    () =>
+      new Map(
+        BROWSABLE.map(activity => [activity.id, searchTextsOf(activity)]),
+      ),
+    [],
+  );
+  // Filters once typing pauses, not on every key.
+  const debouncedQuery = useDebounce(query);
+  const activities = useMemo(
+    () =>
+      BROWSABLE.filter(
+        activity =>
+          (category === 'all' || activity.category === category) &&
+          matchesSearch(searchTexts.get(activity.id) ?? [], debouncedQuery),
+      ),
+    [category, debouncedQuery, searchTexts],
+  );
   /** Whole zoom level: clusters only change when the map crosses a level. */
   const [zoomLevel, setZoomLevel] = useState(INITIAL_ZOOM);
   // The focused activity always keeps its own marker.
@@ -545,10 +558,6 @@ export default function HomeScreen({ navigation, route }: Props) {
       duration: 600,
     });
   };
-
-  const showComingSoon = useCallback(() => {
-    Alert.alert(t('auth.comingSoonTitle'), t('auth.comingSoonMessage'));
-  }, [t]);
 
   const openActivity = useCallback(
     (activityId: string) =>
@@ -642,7 +651,7 @@ export default function HomeScreen({ navigation, route }: Props) {
     if (category !== 'all' && category !== target.category) {
       selectCategory('all');
     }
-    if (!target.title.toLowerCase().includes(query.trim().toLowerCase())) {
+    if (!matchesSearch(searchTexts.get(target.id) ?? [], query)) {
       setQuery('');
     }
     setFocusedId(target.id);
@@ -697,7 +706,6 @@ export default function HomeScreen({ navigation, route }: Props) {
     >
       <AppHeader
         onLocationPress={showSpots}
-        onNotificationsPress={showComingSoon}
         onProfilePress={() => navigation.navigate('Profile')}
       />
 

@@ -51,6 +51,12 @@ const MAX_MENTION_OPTIONS = 5;
 const PANEL_SLIDE = { duration: 250, easing: Easing.out(Easing.cubic) };
 /** After the screen's slid in, when the panel's built ahead of use. */
 const PANEL_PREBUILD_MS = 800;
+/** The live wave while recording: this many bars, newest on the right. */
+const LIVE_WAVE_BARS = 24;
+const LIVE_WAVE_HEIGHT = ms(18);
+const WAVE_MIN_BAR = ms(3);
+/** The reply bar comes and goes in step with the keyboard. */
+const REPLY_SLIDE = { duration: 250, easing: Easing.out(Easing.cubic) };
 /** The `@query` being typed right before the cursor. */
 const MENTION_QUERY = /(?:^|\s)@([^\s@]*)$/;
 
@@ -187,6 +193,8 @@ export default function Composer({
     [],
   );
   const [recordingMs, setRecordingMs] = useState<number | null>(null);
+  /** The latest loudness readings, newest last, for the live wave. */
+  const [liveLevels, setLiveLevels] = useState<number[]>([]);
   const recording = recordingMs !== null;
   const recordingRef = useRef(false);
   const elapsedRef = useRef(0);
@@ -196,6 +204,29 @@ export default function Composer({
       inputRef.current?.focus();
     }
   }, [replyTo]);
+
+  // The reply bar grows from nothing (and back), so the messages above it
+  // move up smoothly with the keyboard instead of jumping. Shrinking, it
+  // keeps showing what it was a reply to.
+  const [replyShown, setReplyShown] = useState(replyTo);
+  const replyOpen = useSharedValue(replyTo ? 1 : 0);
+  const replyHeight = useSharedValue(0);
+  useEffect(() => {
+    if (replyTo) {
+      setReplyShown(replyTo);
+      replyOpen.value = withTiming(1, REPLY_SLIDE);
+      return;
+    }
+    replyOpen.value = withTiming(0, REPLY_SLIDE, finished => {
+      if (finished) {
+        scheduleOnRN(setReplyShown, null);
+      }
+    });
+  }, [replyTo, replyOpen]);
+  const replyRoomStyle = useAnimatedStyle(() => ({
+    height: replyOpen.value * replyHeight.value,
+    opacity: replyOpen.value,
+  }));
 
   useEffect(
     () => () => {
@@ -237,10 +268,12 @@ export default function Composer({
     try {
       elapsedRef.current = 0;
       setRecordingMs(0);
+      setLiveLevels([]);
       recordingRef.current = true;
-      await startRecording(elapsed => {
+      await startRecording((elapsed, level) => {
         elapsedRef.current = elapsed;
         setRecordingMs(elapsed);
+        setLiveLevels(heard => [...heard.slice(1 - LIVE_WAVE_BARS), level]);
       });
     } catch {
       recordingRef.current = false;
@@ -257,9 +290,9 @@ export default function Composer({
     const durationMs = elapsedRef.current;
     setRecordingMs(null);
     try {
-      const uri = await stopRecording();
+      const { uri, waveform } = await stopRecording();
       if (send && durationMs >= MIN_VOICE_MS) {
-        onSend({ voice: { uri, durationMs } });
+        onSend({ voice: { uri, durationMs, waveform } });
       }
     } catch {
       Alert.alert(t('chat.voiceFailed'));
@@ -304,26 +337,37 @@ export default function Composer({
         !panelBuilt && { paddingBottom: bottomPadding },
       ]}
     >
-      {replyTo ? (
-        <View style={styles.replyBar}>
-          <View style={styles.replyBarAccent} />
-          <View style={styles.flex}>
-            <Text style={styles.replyBarTitle} numberOfLines={1}>
-              {t('chat.replyingTo', { name: senderName(replyTo.senderId) })}
-            </Text>
-            <Text style={styles.replyBarText} numberOfLines={1}>
-              {preview(replyTo)}
-            </Text>
-          </View>
-          <Pressable
-            onPress={onCancelReply}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t('chat.cancelReply')}
+      {replyShown ? (
+        <Reanimated.View style={[styles.replyRoom, replyRoomStyle]}>
+          <View
+            style={styles.replyRoomInner}
+            onLayout={event => {
+              replyHeight.value = event.nativeEvent.layout.height;
+            }}
           >
-            <Icon name="close" size={ms(18)} color={colors.textSecondary} />
-          </Pressable>
-        </View>
+            <View style={styles.replyBar}>
+              <View style={styles.replyBarAccent} />
+              <View style={styles.flex}>
+                <Text style={styles.replyBarTitle} numberOfLines={1}>
+                  {t('chat.replyingTo', {
+                    name: senderName(replyShown.senderId),
+                  })}
+                </Text>
+                <Text style={styles.replyBarText} numberOfLines={1}>
+                  {preview(replyShown)}
+                </Text>
+              </View>
+              <Pressable
+                onPress={onCancelReply}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('chat.cancelReply')}
+              >
+                <Icon name="close" size={ms(18)} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+          </View>
+        </Reanimated.View>
       ) : null}
 
       {mentionOptions.length > 0 ? (
@@ -386,6 +430,18 @@ export default function Composer({
                     time: formatDuration(recordingMs ?? 0),
                   })}
                 </Text>
+                {/* The voice as it comes in, newest on the right. */}
+                <View style={styles.liveWave}>
+                  {liveLevels.map((level, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.liveWaveBar,
+                        { height: WAVE_MIN_BAR + level * LIVE_WAVE_HEIGHT },
+                      ]}
+                    />
+                  ))}
+                </View>
               </View>
             </>
           ) : (

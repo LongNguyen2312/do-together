@@ -1,11 +1,39 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ms } from 'react-native-size-matters';
 
+import {
+  BARE_BUTTON,
+  BARE_ICON,
+  HeaderButton,
+} from '@/components/ScreenHeader';
+import { useAppSelector } from '@/store/hooks';
+import { selectUnreadCount } from '@/store/slices/notificationSlice';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
+import type { RootStackParamList } from '@/types/navigation';
+
+/** Past this, the badge just says "9+". */
+const MAX_BADGE = 9;
+const PROFILE_BUTTON = ms(28);
+/** The empty room either side of a bare icon in its button. */
+const ICON_ROOM = (BARE_BUTTON - BARE_ICON) / 2;
+const PIN_SLACK = ms(4);
+const ACCOUNT_GAP = ms(6);
+/** A bell's swing, side to side, dying away (degrees). */
+const RING_SWINGS = [16, -14, 10, -8, 4, 0];
+const RING_SWING_MS = 90;
 
 interface AppHeaderProps {
   /** Replaces the app name beside the logo. */
@@ -14,7 +42,6 @@ interface AppHeaderProps {
   backgroundColor?: string;
   /** The location and profile buttons only show when their handler is set. */
   onLocationPress?: () => void;
-  onNotificationsPress: () => void;
   onProfilePress?: () => void;
 }
 
@@ -23,7 +50,6 @@ export default function AppHeader({
   title,
   backgroundColor,
   onLocationPress,
-  onNotificationsPress,
   onProfilePress,
 }: AppHeaderProps) {
   const { t } = useTranslation();
@@ -33,6 +59,30 @@ export default function AppHeader({
     [colors, backgroundColor],
   );
   const insets = useSafeAreaInsets();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const unread = useAppSelector(selectUnreadCount);
+  const paused = useAppSelector(state => state.notification.settings.paused);
+
+  // Something new: the bell rings, swinging from its top.
+  const swing = useSharedValue(0);
+  const lastUnread = useRef(0);
+  useEffect(() => {
+    if (unread > lastUnread.current && !paused) {
+      swing.value = withSequence(
+        ...RING_SWINGS.map(angle =>
+          withTiming(angle, {
+            duration: RING_SWING_MS,
+            easing: Easing.inOut(Easing.quad),
+          }),
+        ),
+      );
+    }
+    lastUnread.current = unread;
+  }, [unread, paused, swing]);
+  const bellStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${swing.value}deg` }],
+  }));
 
   return (
     <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -47,34 +97,32 @@ export default function AppHeader({
       </View>
       <View style={styles.headerActions}>
         {onLocationPress ? (
-          <Pressable
+          <HeaderButton
+            bare
+            icon="location-outline"
+            label={t('home.myLocation')}
             onPress={onLocationPress}
-            hitSlop={6}
-            style={styles.headerButton}
-            accessibilityRole="button"
-            accessibilityLabel={t('home.myLocation')}
-          >
-            <Icon
-              name="location-outline"
-              size={ms(22)}
-              color={colors.textSecondary}
-            />
-          </Pressable>
-        ) : null}
-        <Pressable
-          onPress={onNotificationsPress}
-          hitSlop={6}
-          style={styles.headerButton}
-          accessibilityRole="button"
-          accessibilityLabel={t('home.notifications')}
-        >
-          <Icon
-            name="notifications-outline"
-            size={ms(22)}
-            color={colors.textSecondary}
           />
-          <View style={styles.notificationDot} />
-        </Pressable>
+        ) : null}
+        <HeaderButton
+          bare
+          icon={paused ? 'notifications-off-outline' : 'notifications-outline'}
+          label={
+            unread > 0
+              ? t('notifications.bellUnread', { count: unread })
+              : t('home.notifications')
+          }
+          onPress={() => navigation.navigate('Notifications')}
+          iconStyle={[styles.bell, bellStyle]}
+        >
+          {unread > 0 ? (
+            <View style={styles.badge} pointerEvents="none">
+              <Text style={styles.badgeText}>
+                {unread > MAX_BADGE ? `${MAX_BADGE}+` : unread}
+              </Text>
+            </View>
+          ) : null}
+        </HeaderButton>
         {onProfilePress ? (
           <Pressable
             onPress={onProfilePress}
@@ -127,30 +175,41 @@ function createStyles(colors: AppColors, background: string) {
     headerActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: ms(4),
+      gap: ms(2),
     },
-    headerButton: {
-      width: ms(36),
-      height: ms(32),
+    // Swings from where a bell hangs.
+    bell: {
+      transformOrigin: 'top',
+    },
+    // The unread count, on the button's corner.
+    badge: {
+      position: 'absolute',
+      top: -ms(2),
+      right: -ms(5),
+      minWidth: ms(18),
+      height: ms(18),
+      paddingHorizontal: ms(4),
+      borderRadius: ms(9),
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    notificationDot: {
-      position: 'absolute',
-      top: ms(5),
-      right: ms(8),
-      width: ms(8),
-      height: ms(8),
-      borderRadius: ms(4),
       borderWidth: 1.5,
       borderColor: transparent ? colors.background : background,
       backgroundColor: colors.primary,
     },
+    badgeText: {
+      fontSize: fs(10),
+      lineHeight: fs(12),
+      fontFamily: fonts.bold,
+      color: colors.white,
+      fontVariant: ['tabular-nums'],
+    },
     profileButton: {
-      width: ms(26),
-      height: ms(26),
-      marginLeft: ms(4),
-      borderRadius: ms(13),
+      width: PROFILE_BUTTON,
+      height: PROFILE_BUTTON,
+      // A little further from the bell than the bell is from the pin, so
+      // the account stands apart from the actions.
+      marginLeft: ICON_ROOM + PIN_SLACK + ACCOUNT_GAP,
+      borderRadius: PROFILE_BUTTON / 2,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.primaryDark,

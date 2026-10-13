@@ -1,14 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 import {
-  Alert,
-  FlatList,
   Image,
   type ImageStyle,
   type StyleProp,
   Pressable,
   ScrollView,
-  type LayoutRectangle,
-  type ScrollViewInstance,
   Text,
   TextInput,
   View,
@@ -18,13 +14,21 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import Animated, { FadeOut, LinearTransition } from 'react-native-reanimated';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import AppHeader from '@/components/AppHeader';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { useTabBarInset } from '@/components/LiquidTabBar';
 import PulseDot from '@/components/PulseDot';
+import SwipeToDelete, {
+  closeSwipedRow,
+  type SwipeToDeleteHandle,
+} from '@/components/SwipeToDelete';
 import { StoryThumb } from '@/components/StoryMedia';
+import { useCenteredChips } from '@/hooks/useCenteredChips';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useNewStory, useStories } from '@/hooks/useStories';
 import { useMessagePreview } from '@/screens/GroupChat/MessageRow';
 import { chatMemberIds } from '@/services/chat';
@@ -36,8 +40,8 @@ import {
   getActivity,
   getUser,
 } from '@/services/mockData';
-import { useAppSelector } from '@/store/hooks';
-import { threadIn, unreadCountIn } from '@/store/slices/chatSlice';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { deleteChat, threadIn, unreadCountIn } from '@/store/slices/chatSlice';
 import { useTheme } from '@/theme';
 import type {
   Activity,
@@ -77,6 +81,8 @@ export default function ChatsScreen({ navigation }: Props) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const tabBarInset = useTabBarInset();
+  const dispatch = useAppDispatch();
+  const confirm = useConfirm();
 
   const joinedIds = useAppSelector(state => state.activity.joinedIds);
   const chat = useAppSelector(state => state.chat);
@@ -84,29 +90,20 @@ export default function ChatsScreen({ navigation }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
 
-  const filterList = useRef<ScrollViewInstance>(null);
-  const filterFrames = useRef<Partial<Record<Filter, LayoutRectangle>>>({});
-  const filterViewport = useRef(0);
-  const filterContent = useRef(0);
-
-  // Centre the picked chip so its neighbours stay reachable on either side.
+  const chips = useCenteredChips<Filter>();
   const selectFilter = (id: Filter) => {
     setFilter(id);
-    const frame = filterFrames.current[id];
-    if (!frame) return;
-    const maxX = Math.max(0, filterContent.current - filterViewport.current);
-    const x = frame.x + frame.width / 2 - filterViewport.current / 2;
-    filterList.current?.scrollTo({
-      x: Math.min(maxX, Math.max(0, x)),
-      animated: true,
-    });
+    chips.center(id);
   };
 
   const chats = useMemo<ChatSummary[]>(
     () =>
       joinedIds
         .map(getActivity)
-        .filter((activity): activity is Activity => !!activity)
+        .filter(
+          (activity): activity is Activity =>
+            !!activity && !chat.deletedIds.includes(activity.id),
+        )
         .map(activity => {
           const messages = threadIn(chat, activity.id);
           return {
@@ -162,7 +159,8 @@ export default function ChatsScreen({ navigation }: Props) {
       ),
     [chats],
   );
-  const search = normalizeSearch(query);
+  // Filters once typing pauses, not on every key.
+  const search = normalizeSearch(useDebounce(query));
   const visible = chats.filter(
     item =>
       matchesFilter(item) &&
@@ -190,8 +188,20 @@ export default function ChatsScreen({ navigation }: Props) {
   const openChat = (activityId: string) =>
     navigation.navigate('GroupChat', { activityId });
 
-  const showComingSoon = () =>
-    Alert.alert(t('auth.comingSoonTitle'), t('auth.comingSoonMessage'));
+  const askDelete = (activity: Activity, row?: SwipeToDeleteHandle) =>
+    confirm({
+      icon: 'trash-outline',
+      title: t('chats.deleteTitle'),
+      message: t('chats.deleteMessage'),
+      highlight: {
+        emoji: CATEGORY_EMOJI[activity.category],
+        title: activity.title,
+        subtitle: activity.markerTitle,
+      },
+      confirmLabel: t('chats.delete'),
+      onConfirm: () => dispatch(deleteChat(activity.id)),
+      onCancel: () => row?.close(),
+    });
 
   const header = (
     <>
@@ -300,16 +310,10 @@ export default function ChatsScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
-        ref={filterList}
+        {...chips.scrollProps}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filters}
-        onLayout={e => {
-          filterViewport.current = e.nativeEvent.layout.width;
-        }}
-        onContentSizeChange={width => {
-          filterContent.current = width;
-        }}
       >
         {filters.map(id => {
           const active = current === id;
@@ -320,9 +324,7 @@ export default function ChatsScreen({ navigation }: Props) {
             <Pressable
               key={id}
               onPress={() => selectFilter(id)}
-              onLayout={e => {
-                filterFrames.current[id] = e.nativeEvent.layout;
-              }}
+              onLayout={chips.chipLayout(id)}
               style={[styles.filter, active && styles.filterActive]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
@@ -350,20 +352,19 @@ export default function ChatsScreen({ navigation }: Props) {
     <View
       style={[styles.root, { backgroundImage: chatBackground(colors, isDark) }]}
     >
-      <AppHeader
-        title={t('tabs.chats')}
-        backgroundColor="transparent"
-        onNotificationsPress={showComingSoon}
-      />
+      <AppHeader title={t('tabs.chats')} backgroundColor="transparent" />
 
-      <FlatList
+      <Animated.FlatList
         data={visible}
         keyExtractor={item => item.activity.id}
+        // The rows below close the gap a deleted one leaves.
+        itemLayoutAnimation={LinearTransition.duration(220)}
         renderItem={({ item }) => (
           <ChatRow
             item={item}
             styles={styles}
             onPress={() => openChat(item.activity.id)}
+            onDelete={row => askDelete(item.activity, row)}
           />
         )}
         ListHeaderComponent={header}
@@ -376,6 +377,7 @@ export default function ChatsScreen({ navigation }: Props) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={closeSwipedRow}
       />
     </View>
   );
@@ -406,10 +408,13 @@ function ChatRow({
   item,
   styles,
   onPress,
+  onDelete,
 }: {
   item: ChatSummary;
   styles: ChatsStyles;
   onPress: () => void;
+  /** With the row, when swiped, to close it again on cancel. */
+  onDelete: (row?: SwipeToDeleteHandle) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -417,72 +422,99 @@ function ChatRow({
   const { activity, last, unread, muted, status } = item;
   const mine = last?.senderId === ME;
   const sender = last && !mine ? getUser(last.senderId) : undefined;
+  const swipeRef = useRef<SwipeToDeleteHandle>(null);
+  // A tap on an open row only closes it.
+  const press = () => {
+    if (swipeRef.current?.isOpen()) {
+      swipeRef.current.close();
+      return;
+    }
+    onPress();
+  };
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-      accessibilityRole="button"
-    >
-      <View>
-        <ActivityArt
-          activity={activity}
-          styles={styles}
-          imageStyle={styles.avatar}
-        />
-        {status === 'ongoing' ? (
-          <View style={styles.liveDot}>
-            <PulseDot color={colors.primary} size={ms(8)} />
+    <Animated.View exiting={FadeOut.duration(180)}>
+      <SwipeToDelete
+        ref={swipeRef}
+        label={t('chats.delete')}
+        onDelete={() => onDelete(swipeRef.current ?? undefined)}
+      >
+        <Pressable
+          onPress={press}
+          style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+          accessibilityRole="button"
+          accessibilityHint={t('chats.deleteHint')}
+          accessibilityActions={[{ name: 'delete', label: t('chats.delete') }]}
+          onAccessibilityAction={event =>
+            event.nativeEvent.actionName === 'delete' && onDelete()
+          }
+        >
+          <View>
+            <ActivityArt
+              activity={activity}
+              styles={styles}
+              imageStyle={styles.avatar}
+            />
+            {status === 'ongoing' ? (
+              <View style={styles.liveDot}>
+                <PulseDot color={colors.primary} size={ms(8)} />
+              </View>
+            ) : null}
           </View>
-        ) : null}
-      </View>
-      <View style={styles.rowBody}>
-        <View style={styles.rowTop}>
-          <Text
-            style={[styles.rowTitle, unread > 0 && styles.rowTitleUnread]}
-            numberOfLines={1}
-          >
-            {activity.title}
-          </Text>
-          {last ? (
-            <Text style={[styles.rowTime, unread > 0 && styles.rowTimeUnread]}>
-              {sinceLabel(last.sentAt, t)}
-            </Text>
-          ) : null}
-        </View>
-        <View style={styles.rowBottom}>
-          {mine ? (
-            <Icon
-              name="checkmark-done"
-              size={ms(15)}
-              color={colors.textMuted}
-            />
-          ) : null}
-          <Text
-            style={[styles.rowPreview, unread > 0 && styles.rowPreviewUnread]}
-            numberOfLines={1}
-          >
-            {last
-              ? sender
-                ? `${sender.name.split(' ')[0]}: ${preview(last)}`
-                : preview(last)
-              : t('chats.noMessages')}
-          </Text>
-          {muted ? (
-            <Icon
-              name="notifications-off"
-              size={ms(14)}
-              color={colors.textMuted}
-            />
-          ) : null}
-          {unread > 0 ? (
-            <View style={[styles.unread, muted && styles.unreadMuted]}>
-              <Text style={styles.unreadText}>{unread}</Text>
+          <View style={styles.rowBody}>
+            <View style={styles.rowTop}>
+              <Text
+                style={[styles.rowTitle, unread > 0 && styles.rowTitleUnread]}
+                numberOfLines={1}
+              >
+                {activity.title}
+              </Text>
+              {last ? (
+                <Text
+                  style={[styles.rowTime, unread > 0 && styles.rowTimeUnread]}
+                >
+                  {sinceLabel(last.sentAt, t)}
+                </Text>
+              ) : null}
             </View>
-          ) : null}
-        </View>
-      </View>
-    </Pressable>
+            <View style={styles.rowBottom}>
+              {mine ? (
+                <Icon
+                  name="checkmark-done"
+                  size={ms(15)}
+                  color={colors.textMuted}
+                />
+              ) : null}
+              <Text
+                style={[
+                  styles.rowPreview,
+                  unread > 0 && styles.rowPreviewUnread,
+                ]}
+                numberOfLines={1}
+              >
+                {last
+                  ? sender
+                    ? `${sender.name.split(' ')[0]}: ${preview(last)}`
+                    : preview(last)
+                  : t('chats.noMessages')}
+              </Text>
+              {muted ? (
+                <Icon
+                  name="notifications-off"
+                  size={ms(14)}
+                  color={colors.textMuted}
+                />
+              ) : null}
+              {unread > 0 ? (
+                <View style={[styles.unread, muted && styles.unreadMuted]}>
+                  <Text style={styles.unreadText}>{unread}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </Pressable>
+      </SwipeToDelete>
+    </Animated.View>
   );
 }
 

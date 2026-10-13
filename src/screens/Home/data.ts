@@ -1,7 +1,9 @@
 import type { LngLat, LngLatBounds } from '@maplibre/maplibre-react-native';
 import Supercluster from 'supercluster';
 
-import type { ActivityCategory } from '@/types/activity';
+import i18n from '@/translations';
+import type { Activity, ActivityCategory } from '@/types/activity';
+import { normalizeSearch } from '@/utils/format';
 
 export type CategoryId =
   | 'all'
@@ -19,6 +21,39 @@ export const CATEGORY_IDS: CategoryId[] = [
   'badminton',
   'walking',
 ];
+
+/** Category names are matched in every language the app has. */
+const LANGUAGES = ['en', 'vi'] as const;
+
+/**
+ * What the search box matches an activity on: its name, its short map label,
+ * its tag (e.g. "Run • 5 km") and its category, by id and by name in each
+ * language. All without accents, so "chay bo" finds "Chạy bộ".
+ */
+export function searchTextsOf(activity: Activity): string[] {
+  const categoryNames = LANGUAGES.flatMap(language => {
+    const t = i18n.getFixedT(language);
+    return [
+      t(`home.categories.${activity.category}`, { defaultValue: '' }),
+      t(`imFree.activities.${activity.category}`, { defaultValue: '' }),
+    ];
+  });
+  return [
+    activity.title,
+    activity.markerTitle,
+    activity.tag,
+    activity.category,
+    ...categoryNames,
+  ]
+    .filter(Boolean)
+    .map(normalizeSearch);
+}
+
+/** Every word typed is found somewhere in the activity's texts. */
+export function matchesSearch(texts: string[], query: string) {
+  const words = normalizeSearch(query).split(/\s+/).filter(Boolean);
+  return words.every(word => texts.some(text => text.includes(word)));
+}
 
 export function boundsOf(points: LngLat[]): LngLatBounds {
   const lngs = points.map(([lng]) => lng);

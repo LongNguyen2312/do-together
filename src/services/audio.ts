@@ -44,19 +44,65 @@ export async function canRecord() {
   return result === PermissionsAndroid.RESULTS.GRANTED;
 }
 
-export async function startRecording(onTick: (elapsedMs: number) => void) {
+/** A voice note's waveform: this many bars, each 0–1. */
+export const WAVEFORM_BARS = 32;
+/** Quieter than this (dB) draws as silence; 0 dB is the loudest. */
+const SILENCE_DB = -50;
+
+/** Loudness in dB (both platforms report it so) as 0–1. */
+const levelOf = (db: number | undefined) =>
+  db === undefined
+    ? 0
+    : Math.min(Math.max((db - SILENCE_DB) / -SILENCE_DB, 0), 1);
+
+/** How loud the recording's been, every tick since it started. */
+let levels: number[] = [];
+
+/**
+ * Starts recording. `onTick` gets the time so far and how loud it is right
+ * now (0–1), about ten times a second.
+ */
+export async function startRecording(
+  onTick: (elapsedMs: number, level: number) => void,
+) {
   await stopVoice();
   const sound = getRecorder();
+  levels = [];
   sound.setSubscriptionDuration(0.1);
-  sound.addRecordBackListener(meta => onTick(meta.currentPosition));
-  await sound.startRecorder(undefined, VOICE_FORMAT);
+  sound.addRecordBackListener(meta => {
+    const level = levelOf(meta.currentMetering);
+    levels.push(level);
+    onTick(meta.currentPosition, level);
+  });
+  await sound.startRecorder(undefined, VOICE_FORMAT, true);
 }
 
-/** Resolves with the recorded file's uri. */
+/**
+ * The levels squeezed into `bars` bars (each the loudest of its slice),
+ * scaled so the loudest bar is full height.
+ */
+export function waveformOf(heard: number[], bars = WAVEFORM_BARS) {
+  if (!heard.length) {
+    return [];
+  }
+  const wave = Array.from({ length: bars }, (_, i) => {
+    const start = Math.floor((i * heard.length) / bars);
+    const end = Math.max(
+      start + 1,
+      Math.floor(((i + 1) * heard.length) / bars),
+    );
+    return Math.max(...heard.slice(start, end));
+  });
+  const peak = Math.max(...wave, 0.01);
+  return wave.map(level => Math.round((level / peak) * 100) / 100);
+}
+
+/** Resolves with the recorded file's uri and its waveform. */
 export async function stopRecording() {
   const sound = getRecorder();
   sound.removeRecordBackListener();
-  return sound.stopRecorder();
+  const uri = await sound.stopRecorder();
+  return { uri, waveform: waveformOf(levels) };
 }
 
 export interface PlaybackState {

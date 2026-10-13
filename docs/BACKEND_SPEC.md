@@ -123,13 +123,13 @@ Giới hạn trên là **sau khi nén** ([1.4](#14-nén-trước-khi-upload)), c
 
 App **bắt buộc nén** mọi media trước khi lưu hoặc upload lên R2, **không bao giờ gửi file gốc**, để tiết kiệm dung lượng lưu trữ, dữ liệu di động của người dùng và thời gian tải khi xem. Server không nén lại (Workers không xử lý được ảnh / video), chỉ chặn file vượt giới hạn ở [1.3](#13-upload-media).
 
-| Loại                         | Chuẩn sau khi nén                                                                        | Dung lượng thường gặp | Hiện trạng FE                                                                                                                                                                      |
-| ---------------------------- | ---------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ảnh story, chat              | JPEG, cạnh dài ≤ 1600 px, chất lượng 0.8; bỏ EXIF (vị trí GPS); HEIC / PNG đổi sang JPEG | 200–600 KB            | **Đã làm** (`compressPhoto` trong `src/services/media.ts`): story nén khi mở màn soạn, ảnh chat nén trước khi gửi. Đo thử: ảnh 4000×3000 → 1600×1200, 131 KB.                      |
-| Avatar, ảnh hoạt động tự đặt | JPEG, cạnh dài ≤ 800 px, chất lượng 0.8                                                  | 80–200 KB             | **Đã làm** cho ảnh hoạt động tự đặt (320 px vì lưu thẳng trong store, `compressPhotoToDataUri`). App chưa có màn đổi avatar.                                                       |
+| Loại                         | Chuẩn sau khi nén                                                                                              | Dung lượng thường gặp | Hiện trạng FE                                                                                                                                                                      |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ảnh story, chat              | JPEG, cạnh dài ≤ 1600 px, chất lượng 0.8; bỏ EXIF (vị trí GPS); HEIC / PNG đổi sang JPEG                       | 200–600 KB            | **Đã làm** (`compressPhoto` trong `src/services/media.ts`): story nén khi mở màn soạn, ảnh chat nén trước khi gửi. Đo thử: ảnh 4000×3000 → 1600×1200, 131 KB.                      |
+| Avatar, ảnh hoạt động tự đặt | JPEG, cạnh dài ≤ 800 px, chất lượng 0.8                                                                        | 80–200 KB             | **Đã làm** cho ảnh hoạt động tự đặt (320 px vì lưu thẳng trong store, `compressPhotoToDataUri`). App chưa có màn đổi avatar.                                                       |
 | Video story, video chat      | H.264 + AAC trong MP4, cạnh dài ≤ 1280 px (720p), ~2,5 Mbps, 30 fps; story tối đa 30 giây, chat tối đa 10 giây | 5–10 MB / 30 giây     | **Đã làm** (`compressVideo`): nén ngầm khi mở màn soạn, nút "Chia sẻ" hiện % và chỉ bấm được khi nén xong; đóng màn thì huỷ. Đo thử: 1080p 12 Mbps 45,8 MB → 720p 2,5 Mbps 9,9 MB. |
-| Ảnh bìa video                | JPEG khung hình đầu, cạnh dài ≤ 720 px                                                   | 30–100 KB             | **Đã làm** (`videoPoster`): cắt khung đầu sau khi nén, ô story ở tab Chats dùng ảnh này. Đo thử: 720×1280, 76 KB.                                                                  |
-| Tin nhắn thoại               | AAC trong `.m4a`, mono, 64 kbps, 44.1 kHz                                                | ~0,5 MB / phút        | **Đã làm**: ghi âm AAC mono 64 kbps, 44,1 kHz (`VOICE_FORMAT` trong `src/services/audio.ts`).                                                                                      |
+| Ảnh bìa video                | JPEG khung hình đầu, cạnh dài ≤ 720 px                                                                         | 30–100 KB             | **Đã làm** (`videoPoster`): cắt khung đầu sau khi nén, ô story ở tab Chats dùng ảnh này. Đo thử: 720×1280, 76 KB.                                                                  |
+| Tin nhắn thoại               | AAC trong `.m4a`, mono, 64 kbps, 44.1 kHz                                                                      | ~0,5 MB / phút        | **Đã làm**: ghi âm AAC mono 64 kbps, 44,1 kHz (`VOICE_FORMAT` trong `src/services/audio.ts`).                                                                                      |
 
 Upload nên chạy nền, có thanh tiến trình và cho thử lại khi mất mạng; story / tin nhắn chỉ được tạo sau khi upload xong.
 
@@ -342,7 +342,8 @@ interface ChatMessage {
   text?: string; // tối đa 2000 ký tự (cần chốt)
   photos?: ChatPhoto[]; // tối đa 5 ảnh trong một tin
   video?: { url: string; durationMs: number; posterUrl: string }; // tối đa 10 giây, gửi riêng (không kèm ảnh)
-  voice?: { url: string; durationMs: number };
+  // waveform: 32 số 0–1 (độ to dọc theo voice), app đo lúc ghi âm; server chỉ lưu và trả lại
+  voice?: { url: string; durationMs: number; waveform?: number[] };
   stickerId?: string; // id trong bộ sticker dựng sẵn của app, vd "moves-3", "phrases-letsGo"
   replyToId?: string; // trả lời một tin trong cùng nhóm
   // Gắn thẻ: `text` chứa nguyên tên người được gắn, `mentionIds` là danh sách user tương ứng
@@ -475,7 +476,7 @@ interface MusicTrack {
 }
 ```
 
-**Hiện trạng:** chưa cần BE. 8 bài nằm trong bucket R2 công khai `https://pub-cf44691d4c52430289ab0192fb092766.r2.dev`, thư mục `music/`, kèm `music/manifest.json` (mảng `{ id, title, file, durationMs }`, bản gốc ở `scripts/music/manifest.json`). FE đọc qua `MUSIC_BASE_URL` (`src/utils/constants.ts`) và `src/services/music.ts`. Khi có BE, chỉ cần thay bằng `GET /music/tracks` ([10.6](#106-nhạc)); kiểu dữ liệu giữ nguyên.
+**Hiện trạng:** chưa cần BE. 28 bài nằm trong bucket R2 công khai `dotogether-media` (`https://pub-d361b952046a4af8866eeea07fdd5900.r2.dev`), thư mục `music/`, kèm `music/manifest.json` (mảng `{ id, title, file, durationMs }`, bản gốc ở `scripts/music/manifest.json`). FE đọc qua `MUSIC_BASE_URL` (`src/utils/constants.ts`) và `src/services/music.ts`. Khi có BE, chỉ cần thay bằng `GET /music/tracks` ([10.6](#106-nhạc)); kiểu dữ liệu giữ nguyên.
 
 > `r2.dev` có giới hạn lượt truy cập, chỉ hợp cho giai đoạn phát triển. Lên production cần gắn tên miền riêng cho bucket rồi đổi `MUSIC_BASE_URL`.
 
@@ -545,6 +546,7 @@ interface MusicTrack {
 - **Gắn thẻ:** `mentionIds` chỉ gồm thành viên nhóm; người được gắn nhận thông báo kể cả khi đã tắt thông báo nhóm.
 - **Đã đọc / chưa đọc:** mỗi người một mốc `lastReadAt` cho mỗi nhóm. `unreadCount` = số tin của người khác có `sentAt > lastReadAt`. FE đánh dấu đã đọc khi mở nhóm.
 - **Tắt thông báo** (mute) theo từng nhóm: không push, nhưng vẫn đếm chưa đọc.
+- **Xoá đoạn chat** (vuốt trái một dòng ở tab Chats): chỉ xoá **phía người xoá**, những người khác không bị ảnh hưởng và user vẫn là thành viên. Lưu mốc `clearedAt` cho (user, nhóm): tin có `sentAt <= clearedAt` không trả về cho user này nữa, nhóm không còn trong `/me/chats` cho tới khi có tin mới (`sentAt > clearedAt`) thì hiện lại, chỉ với các tin sau mốc đó.
 - **Báo cáo:** người báo cáo không được báo cáo tin của chính mình; mỗi người chỉ báo cáo một tin một lần (gửi lại coi như thành công). Người bị báo cáo không biết.
 - **Tab Chats** liệt kê nhóm của mọi hoạt động user đã join (kể cả đã kết thúc), sắp theo tin mới nhất. Bộ lọc: Tất cả / Chưa đọc / Nhóm (hơn 2 người) / theo `ActivityCategory`. Tìm kiếm theo tên hoạt động, tên thành viên.
 
@@ -823,7 +825,7 @@ Quy tắc ở [3.6](#36-customactivity-hoạt-động-tự-đặt-cho-im-free). 
 | DELETE | `/users/{id}/follow`                               | Bỏ theo dõi                                        | Free nearby map           |
 | POST   | `/users/{id}/friend-requests`                      | Gửi lời mời kết bạn (idempotent)                   | Free nearby map           |
 | DELETE | `/friend-requests/{id}`                            | Huỷ lời mời đã gửi                                 | (chưa có UI)              |
-| POST   | `/friend-requests/{id}/accept` \| `/decline`       | Trả lời                                            | (chưa có UI)              |
+| POST   | `/friend-requests/{id}/accept` \| `/decline`       | Trả lời                                            | Thông báo                 |
 | GET    | `/me/friend-requests?direction=incoming\|outgoing` | Danh sách                                          | (chưa có UI)              |
 | POST   | `/invites`                                         | Rủ người đang rảnh `{ "toUserId", "activityId?" }` | Discover, Activity Detail |
 
@@ -835,19 +837,20 @@ Lỗi: `ALREADY_FRIENDS`, `CANNOT_TARGET_SELF`. Rủ cùng một người nhiề
 
 Thay cho `src/services/chat.ts` (đoạn chat dựng sẵn) và `src/store/slices/chatSlice.ts`.
 
-| Method | Path                                                | Mô tả                                                            | Màn                         |
-| ------ | --------------------------------------------------- | ---------------------------------------------------------------- | --------------------------- |
-| GET    | `/me/chats?filter=&category=&q=&limit=&cursor=`     | Danh sách `ChatSummary`; `filter` = `all` \| `unread` \| `group` | Tab Chats                   |
-| GET    | `/chats/{activityId}/messages?before=&limit=30`     | Tin nhắn, mới nhất trước (FE vẽ danh sách đảo ngược)             | Group chat                  |
-| POST   | `/chats/{activityId}/messages`                      | Gửi tin                                                          | Group chat                  |
-| DELETE | `/chats/{activityId}/messages/{messageId}`          | Thu hồi tin của mình (chưa có UI)                                | —                           |
-| PUT    | `/chats/{activityId}/messages/{messageId}/reaction` | `{ "emoji": "🔥" }`; thả lại đúng emoji đang có = gỡ             | Giữ tin → hàng cảm xúc      |
-| DELETE | `/chats/{activityId}/messages/{messageId}/reaction` | Gỡ cảm xúc                                                       | —                           |
-| POST   | `/chats/{activityId}/messages/{messageId}/reports`  | `{ "reason": ReportReason }`                                     | Giữ tin → Báo cáo           |
-| POST   | `/chats/{activityId}/read`                          | `{ "lastReadAt": "…" }` (chỉ tăng, không lùi)                    | Mở nhóm                     |
-| PUT    | `/chats/{activityId}/mute` \| `DELETE …/mute`       | Tắt / bật thông báo nhóm                                         | Thông tin nhóm              |
-| GET    | `/chats/{activityId}/photos?limit=&cursor=`         | Mọi ảnh trong nhóm, mới trước                                    | Thông tin nhóm → Ảnh        |
-| GET    | `/chats/{activityId}/members`                       | Thành viên (`PublicUser` + `isHost`)                             | Thông tin nhóm → Thành viên |
+| Method | Path                                                | Mô tả                                                                         | Màn                         |
+| ------ | --------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------- |
+| GET    | `/me/chats?filter=&category=&q=&limit=&cursor=`     | Danh sách `ChatSummary`; `filter` = `all` \| `unread` \| `group`              | Tab Chats                   |
+| GET    | `/chats/{activityId}/messages?before=&limit=30`     | Tin nhắn, mới nhất trước (FE vẽ danh sách đảo ngược)                          | Group chat                  |
+| POST   | `/chats/{activityId}/messages`                      | Gửi tin                                                                       | Group chat                  |
+| DELETE | `/chats/{activityId}/messages/{messageId}`          | Thu hồi tin của mình (chưa có UI)                                             | —                           |
+| PUT    | `/chats/{activityId}/messages/{messageId}/reaction` | `{ "emoji": "🔥" }`; thả lại đúng emoji đang có = gỡ                          | Giữ tin → hàng cảm xúc      |
+| DELETE | `/chats/{activityId}/messages/{messageId}/reaction` | Gỡ cảm xúc                                                                    | —                           |
+| POST   | `/chats/{activityId}/messages/{messageId}/reports`  | `{ "reason": ReportReason }`                                                  | Giữ tin → Báo cáo           |
+| POST   | `/chats/{activityId}/read`                          | `{ "lastReadAt": "…" }` (chỉ tăng, không lùi)                                 | Mở nhóm                     |
+| PUT    | `/chats/{activityId}/mute` \| `DELETE …/mute`       | Tắt / bật thông báo nhóm                                                      | Thông tin nhóm              |
+| DELETE | `/me/chats/{activityId}`                            | Xoá đoạn chat phía mình (đặt `clearedAt` = bây giờ), xem [4.8](#48-chat-nhóm) | Tab Chats → vuốt trái       |
+| GET    | `/chats/{activityId}/photos?limit=&cursor=`         | Mọi ảnh trong nhóm, mới trước                                                 | Thông tin nhóm → Ảnh        |
+| GET    | `/chats/{activityId}/members`                       | Thành viên (`PublicUser` + `isHost`)                                          | Thông tin nhóm → Thành viên |
 
 ### 9.1 Gửi tin
 
@@ -860,13 +863,15 @@ Thay cho `src/services/chat.ts` (đoạn chat dựng sẵn) và `src/store/slice
   "replyToId": "m_120",
   "photoUploadIds": ["upl_1", "upl_2"], // hoặc
   "voiceUploadId": "upl_3",
-  "voiceDurationMs": 4200, // hoặc
+  "voiceDurationMs": 4200,
+  "voiceWaveform": [0.2, 0.6, 1, 0.8 /* … đủ 32 số */], // hoặc
   "stickerId": "phrases-letsGo"
 }
 // 201 → ChatMessage
 ```
 
 - Cần ít nhất một trong: `text`, ảnh, voice, sticker.
+- `voiceWaveform` (tuỳ chọn): đúng 32 số trong khoảng 0–1, làm tròn 2 chữ số; sai thì bỏ qua (app vẽ sóng thay thế), không từ chối tin.
 - `clientId` trùng với tin đã gửi → trả lại tin cũ (idempotent).
 - FE hiện thêm tin ngay (lạc quan), khớp lại theo `clientId` khi server trả về.
 
@@ -957,7 +962,9 @@ Lỗi: `VIDEO_TOO_LONG`, `MEDIA_TOO_LARGE`, `UNSUPPORTED_MEDIA`, `UPLOAD_NOT_FOU
 
 ## 11. Thông báo & realtime
 
-Nút chuông trên header hiện "Sắp ra mắt". Các sự kiện cần thông báo (push + danh sách trong app):
+Chuông trên header (`src/components/AppHeader.tsx`) mở màn **Thông báo** (`src/screens/Notifications`), có số thông báo chưa đọc và rung nhẹ khi có thông báo mới. FE hiện dùng dữ liệu giả ở `src/services/notifications.ts` + `src/store/slices/notificationSlice.ts`; khi có BE, thay bằng các endpoint bên dưới, kiểu dữ liệu giữ nguyên (`src/types/notification.ts`).
+
+Các sự kiện cần thông báo (push + danh sách trong app):
 
 | Sự kiện                                  | Người nhận                                        |
 | ---------------------------------------- | ------------------------------------------------- |
@@ -973,13 +980,73 @@ Nút chuông trên header hiện "Sắp ra mắt". Các sự kiện cần thông
 | Có người trả lời / thả cảm xúc story     | Chủ story                                         |
 | Bạn bè đăng story (tuỳ chọn)             | Bạn bè                                            |
 
+```ts
+type NotificationKind =
+  | 'join'
+  | 'leave'
+  | 'starting'
+  | 'checkIn'
+  | 'invite' // nhóm "Hoạt động"
+  | 'mention'
+  | 'reply' // nhóm "Chat"
+  | 'friendRequest'
+  | 'friendAccepted'
+  | 'follow' // nhóm "Bạn bè"
+  | 'storyReaction'
+  | 'storyReply'
+  | 'friendStory'; // nhóm "Story"
+
+interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  createdAt: string;
+  read: boolean;
+  actorId?: string; // người gây ra; không có với `starting`
+  activityId?: string;
+  emoji?: string; // storyReaction
+  quote?: string; // tin nhắn / câu trả lời story được trích
+  minutes?: number; // starting: còn bao nhiêu phút
+  friendRequestId?: string; // friendRequest: trả lời qua `/friend-requests/{id}/accept` | `/decline` (mục 8.6)
+  friendRequestAnswer?: 'accepted' | 'declined'; // friendRequest đã trả lời
+}
+
+interface NotificationSettings {
+  paused: boolean; // tạm dừng tất cả (không push, không thêm vào danh sách)
+  enabled: Record<
+    | 'members'
+    | 'starting'
+    | 'checkIns'
+    | 'invites'
+    | 'mentions'
+    | 'replies'
+    | 'friendRequests'
+    | 'follows'
+    | 'storyActivity'
+    | 'friendStories',
+    boolean
+  >;
+}
+```
+
+Quy tắc màn Thông báo:
+
+- **Số chưa đọc** hiện trên chuông ở header và cạnh tiêu đề màn Thông báo; chỉ mất khi mọi thông báo đã đọc. Một dòng thành **đã đọc** khi bấm vào nó, khi trả lời lời mời kết bạn, hoặc khi bấm "Đánh dấu tất cả là đã đọc". Mở màn Thông báo **không** tự đánh dấu đã đọc.
+- **Bộ lọc:** Tất cả / Chưa đọc / Hoạt động / Chat / Bạn bè / Story (theo nhóm của `kind`). Danh sách chia mục Hôm nay / Hôm qua / Tuần này / Trước đó theo giờ máy.
+- **Bấm vào:** `mention`, `reply` → nhóm chat (nếu còn là thành viên, không thì chi tiết hoạt động); các loại có `activityId` → chi tiết hoạt động; `storyReaction`, `storyReply` → story của mình; `friendStory` → story của người đó.
+- **Lời mời kết bạn** trả lời ngay trên dòng (Chấp nhận / Từ chối); câu chữ đổi theo câu trả lời.
+- **Vuốt trái để xoá** từng thông báo (chỉ xoá phía user, không cần xác nhận).
+- **Cài đặt:** tắt một mục hoặc tạm dừng tất cả thì thông báo loại đó không push và không được thêm vào danh sách. `starting` gửi trước 30 phút. `friendStories` mặc định tắt. Tin nhắn mới trong nhóm chat vẫn bật / tắt theo từng nhóm ([9](#9-api--chat-nhóm), `mute`); `mention` vẫn tới kể cả khi nhóm đã tắt thông báo.
+
 Endpoint gợi ý:
 
-| Method | Path                                                            |
-| ------ | --------------------------------------------------------------- |
-| POST   | `/me/devices` `{ "pushToken", "platform": "ios" \| "android" }` |
-| GET    | `/me/notifications?limit=&cursor=`                              |
-| POST   | `/me/notifications/read` `{ "ids": [] }`                        |
+| Method | Path                                                               | Màn                             |
+| ------ | ------------------------------------------------------------------ | ------------------------------- |
+| POST   | `/me/devices` `{ "pushToken", "platform": "ios" \| "android" }`    | Đăng nhập                       |
+| GET    | `/me/notifications?group=&unread=&limit=&cursor=`                  | Thông báo (`group` theo bộ lọc) |
+| GET    | `/me/notifications/summary` → `{ unreadCount }`                    | Chuông trên header              |
+| POST   | `/me/notifications/read` `{ "ids": [] }` \| `{ "all": true }`      | Bấm một dòng / Đánh dấu tất cả  |
+| DELETE | `/me/notifications/{id}`                                           | Vuốt trái → Xoá                 |
+| GET    | `/me/notification-settings` \| `PUT` (body `NotificationSettings`) | Cài đặt thông báo               |
 
 ### 11.1 Realtime bằng Durable Objects
 
@@ -1061,7 +1128,7 @@ D1 là SQLite nên **không có PostGIS, `unaccent`, `pg_trgm`**; cách thay th�
 - **Vị trí:** chỉ giữ vị trí mới nhất mỗi user (`user_locations`) để tìm người rảnh gần đây; vị trí live khi đi hoạt động nằm trong `ActivityLive`, không ghi D1. Broadcast hết hạn thì xoá hoặc ẩn toạ độ.
 - **Giới hạn D1:** mỗi database tối đa 10 GB và chỉ một luồng ghi. Tin nhắn chat to nhanh nhất: nên để **chat ở một database D1 riêng**, và chuyển chat của hoạt động đã kết thúc lâu (vd > 90 ngày) sang R2 dạng JSON nếu cần (cần chốt).
 
-Bảng tối thiểu: `users`, `auth_identities`, `refresh_tokens`, `activities`, `activity_members`, `activity_saves`, `communities`, `community_members`, `broadcasts`, `custom_activities`, `follows`, `friend_requests`, `invites`, `user_locations`, `devices`, `notifications`, `uploads`, `chat_messages`, `chat_message_photos`, `chat_message_mentions`, `message_reactions`, `message_reports`, `chat_reads`, `chat_mutes`, `stories`, `story_views`, `story_replies`, `music_tracks`.
+Bảng tối thiểu: `users`, `auth_identities`, `refresh_tokens`, `activities`, `activity_members`, `activity_saves`, `communities`, `community_members`, `broadcasts`, `custom_activities`, `follows`, `friend_requests`, `invites`, `user_locations`, `devices`, `notifications`, `uploads`, `chat_messages`, `chat_message_photos`, `chat_message_mentions`, `message_reactions`, `message_reports`, `chat_reads`, `chat_mutes`, `chat_clears`, `stories`, `story_views`, `story_replies`, `music_tracks`.
 
 ### 13.2 R2 (media)
 

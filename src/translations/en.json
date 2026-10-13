@@ -315,7 +315,11 @@
     "minutesAgo_other": "{{count}} mins",
     "noMessages": "No messages yet",
     "empty": "Join an activity to chat with its group.",
-    "noMatch": "No chats match."
+    "noMatch": "No chats match.",
+    "delete": "Delete",
+    "deleteTitle": "Delete this chat?",
+    "deleteMessage": "Its messages are cleared for you only. The chat comes back when someone sends a new message.",
+    "deleteHint": "Swipe left to delete"
   },
   "stories": {
     "addTitle": "Add to your story",
@@ -412,7 +416,8 @@
       "notificationsOff": "Off, new messages are still counted",
       "viewActivity": "View activity details"
     },
-    "endedNotice": "This activity has ended. You can still read the messages."
+    "endedNotice": "This activity has ended. You can still read the messages.",
+    "cameraUnavailable": "The camera isn't available on this device."
   },
   "stickers": {
     "credit": "Emoji graphics: Twemoji © Twitter, Inc and other contributors, licensed under",
@@ -551,7 +556,8 @@
       "vintage": "Vintage",
       "fade": "Fade",
       "mono": "Mono"
-    }
+    },
+    "holdToRecord": "Hold to record a video"
   },
   "chatGallery": {
     "title": "Photos & videos",
@@ -567,7 +573,9 @@
   "videoViewer": {
     "seek": "Playback position",
     "mute": "Mute",
-    "unmute": "Unmute"
+    "unmute": "Unmute",
+    "back10": "Back 10 seconds",
+    "forward10": "Forward 10 seconds"
   },
   "storyGallery": {
     "chooseAlbum": "Choose an album",
@@ -612,5 +620,122 @@
     "musicCount_other": "{{count}} songs · preview before you pick",
     "changeMusic": "{{title}}, tap to change the music",
     "prepareFailed": "Couldn't compress, try again"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "unreadCount": "{{count}} unread",
+    "bellUnread_one": "Notifications, {{count}} unread",
+    "bellUnread_other": "Notifications, {{count}} unread",
+    "markAllRead": "Mark all as read",
+    "settings": "Notification settings",
+    "delete": "Delete",
+    "filters": {
+      "all": "All",
+      "unread": "Unread",
+      "activity": "Activities",
+      "chat": "Chats",
+      "friends": "Friends",
+      "story": "Stories"
+    },
+    "sections": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This week",
+      "earlier": "Earlier"
+    },
+    "time": {
+      "now": "Just now",
+      "minutes": "{{count}} min ago",
+      "hours": "{{count}} h ago",
+      "yesterday": "Yesterday",
+      "days": "{{count}} days ago"
+    },
+    "kinds": {
+      "join": "<b>{{name}}</b> joined <b>{{activity}}</b>",
+      "leave": "<b>{{name}}</b> left <b>{{activity}}</b>",
+      "starting": "<b>{{activity}}</b> starts in {{minutes}} minutes. Time to head out!",
+      "checkIn": "<b>{{name}}</b> checked in at <b>{{activity}}</b>",
+      "invite": "<b>{{name}}</b> invited you to <b>{{activity}}</b>",
+      "mention": "<b>{{name}}</b> mentioned you in <b>{{activity}}</b>",
+      "reply": "<b>{{name}}</b> replied to your message in <b>{{activity}}</b>",
+      "friendRequest": "<b>{{name}}</b> sent you a friend request",
+      "friendRequestAccepted": "You and <b>{{name}}</b> are now friends",
+      "friendRequestDeclined": "You removed <b>{{name}}</b>'s friend request",
+      "friendAccepted": "<b>{{name}}</b> accepted your friend request",
+      "follow": "<b>{{name}}</b> started following you",
+      "storyReaction": "<b>{{name}}</b> reacted {{emoji}} to your story",
+      "storyReply": "<b>{{name}}</b> replied to your story",
+      "friendStory": "<b>{{name}}</b> posted a new story"
+    },
+    "accept": "Accept",
+    "decline": "Decline",
+    "empty": {
+      "title": "No notifications yet",
+      "message": "When someone joins your activities, messages you or invites you out, you'll see it here.",
+      "explore": "Explore activities"
+    },
+    "emptyFilter": {
+      "unread": "You're all caught up",
+      "other": "Nothing here yet"
+    },
+    "paused": {
+      "title": "Notifications are paused",
+      "message": "You won't get anything new until you turn them back on.",
+      "resume": "Turn on"
+    },
+    "settingsScreen": {
+      "title": "Notification settings",
+      "pauseAll": "Pause all notifications",
+      "pauseAllHint": "Nothing comes through until you turn this off.",
+      "sections": {
+        "activity": "Activities",
+        "chat": "Group chats",
+        "friends": "Friends",
+        "story": "Stories"
+      },
+      "items": {
+        "members": {
+          "label": "People joining or leaving",
+          "hint": "Activities you host"
+        },
+        "starting": {
+          "label": "Starting soon",
+          "hint": "30 minutes before activities you joined"
+        },
+        "checkIns": {
+          "label": "Check-ins",
+          "hint": "When others arrive at your activity"
+        },
+        "invites": {
+          "label": "Invites",
+          "hint": "When friends invite you to an activity"
+        },
+        "mentions": {
+          "label": "Mentions",
+          "hint": "Even in group chats you've muted"
+        },
+        "replies": {
+          "label": "Replies",
+          "hint": "When someone replies to your message"
+        },
+        "friendRequests": {
+          "label": "Friend requests",
+          "hint": "New requests, and yours being accepted"
+        },
+        "follows": {
+          "label": "New followers",
+          "hint": "When someone follows you"
+        },
+        "storyActivity": {
+          "label": "Reactions and replies",
+          "hint": "On your stories"
+        },
+        "friendStories": {
+          "label": "Friends' stories",
+          "hint": "When a friend posts a story"
+        }
+      },
+      "chatNote": "New messages are turned on or off for each group, in its group info."
+    }
   }
 }

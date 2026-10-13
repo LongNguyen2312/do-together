@@ -99,7 +99,11 @@ export async function fetchGalleryPage(
     first,
     after,
     assetType: 'All',
-    include: ['playableDuration'],
+    // Sizes are free on iOS but would make Android open every file.
+    include:
+      Platform.OS === 'ios'
+        ? ['playableDuration', 'imageSize']
+        : ['playableDuration'],
     ...(album ? { groupTypes: album.type, groupName: album.title } : {}),
   });
   return {
@@ -108,6 +112,8 @@ export async function fetchGalleryPage(
       // iOS says `video`, Android gives the MIME type, e.g. `video/mp4`.
       type: node.type.startsWith('video') ? 'video' : 'photo',
       durationMs: Math.round((node.image.playableDuration ?? 0) * 1000),
+      width: node.image.width || undefined,
+      height: node.image.height || undefined,
     })),
     next: page.page_info.has_next_page ? page.page_info.end_cursor : undefined,
   };

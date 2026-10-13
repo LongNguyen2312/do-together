@@ -4,7 +4,6 @@ import { ms } from 'react-native-size-matters';
 import { fonts, fs, lightColors, type AppColors } from '@/theme';
 
 const SCREEN_PADDING = ms(16);
-const HEADER_BUTTON = ms(40);
 const HOST_AVATAR = ms(44);
 const PERSON_AVATAR = ms(36);
 const ONLINE_DOT = ms(13);
@@ -39,50 +38,6 @@ export function createStyles(colors: AppColors) {
       fontSize: fs(11.5),
       fontFamily: fonts.regular,
       color: colors.textSecondary,
-    },
-
-    header: {
-      height: ms(56),
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: SCREEN_PADDING,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: colors.border,
-    },
-    headerCenter: {
-      position: 'absolute',
-      left: SCREEN_PADDING + HEADER_BUTTON * 2,
-      right: SCREEN_PADDING + HEADER_BUTTON * 2,
-      alignItems: 'center',
-    },
-    headerBrand: {
-      fontSize: fs(10),
-      fontFamily: fonts.semibold,
-      letterSpacing: 1.6,
-      textTransform: 'uppercase',
-      color: colors.textSecondary,
-    },
-    headerTitle: {
-      fontSize: fs(15.5),
-      fontFamily: fonts.bold,
-      letterSpacing: -0.3,
-      color: colors.text,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      gap: ms(6),
-    },
-    headerButton: {
-      width: HEADER_BUTTON,
-      height: HEADER_BUTTON,
-      borderRadius: HEADER_BUTTON / 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.surfaceMuted,
-      backgroundColor: colors.card,
-      ...softShadow,
     },
 
     scroll: {

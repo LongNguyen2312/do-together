@@ -86,6 +86,9 @@ export interface GalleryAsset {
   type: 'photo' | 'video';
   /** 0 for photos. */
   durationMs: number;
+  /** iOS only (free there; Android would read every file). */
+  width?: number;
+  height?: number;
 }
 
 /** An album in the phone's library, to narrow the story gallery to. */

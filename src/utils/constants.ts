@@ -1,11 +1,11 @@
 export const API_BASE_URL = 'https://api.example.com';
 /**
- * Public URL of the Cloudflare R2 bucket with the story music, no trailing
+ * Public URL of the Cloudflare R2 bucket dotogether-media, no trailing
  * slash. Songs and their list go in its music/ folder; the list's source is
  * scripts/music/manifest.json, uploaded by hand along with new songs.
  */
 export const MUSIC_BASE_URL =
-  'https://pub-cf44691d4c52430289ab0192fb092766.r2.dev';
+  'https://pub-d361b952046a4af8866eeea07fdd5900.r2.dev';
 export const DEBOUNCE_DELAY = 400;
 
 /** Forms and CTAs stop stretching past this width on tablets. */

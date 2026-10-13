@@ -54,8 +54,8 @@ export function createStyles(colors: AppColors) {
       alignItems: 'center',
       gap: ms(10),
       paddingLeft: ms(16),
-      paddingRight: ms(8),
-      paddingVertical: ms(8),
+      paddingRight: ms(7),
+      paddingVertical: ms(6.5),
       borderRadius: ms(999),
     },
     floatingFallback: {
@@ -91,9 +91,9 @@ export function createStyles(colors: AppColors) {
       color: colors.textSecondary,
     },
     locateButton: {
-      width: ms(34),
-      height: ms(34),
-      borderRadius: ms(17),
+      width: ms(32),
+      height: ms(32),
+      borderRadius: ms(16),
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: colors.surfaceMuted,

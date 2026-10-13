@@ -315,7 +315,11 @@
     "minutesAgo_other": "{{count}} phút",
     "noMessages": "Chưa có tin nhắn",
     "empty": "Tham gia một hoạt động để trò chuyện cùng nhóm.",
-    "noMatch": "Không có cuộc trò chuyện nào phù hợp."
+    "noMatch": "Không có cuộc trò chuyện nào phù hợp.",
+    "delete": "Xóa",
+    "deleteTitle": "Xóa đoạn chat này?",
+    "deleteMessage": "Tin nhắn chỉ bị xóa ở phía bạn. Đoạn chat sẽ hiện lại khi có người nhắn tin mới.",
+    "deleteHint": "Vuốt sang trái để xóa"
   },
   "stories": {
     "addTitle": "Thêm vào story của bạn",
@@ -412,7 +416,8 @@
       "notificationsOff": "Đã tắt, tin mới vẫn được đếm",
       "viewActivity": "Xem chi tiết hoạt động"
     },
-    "endedNotice": "Hoạt động đã kết thúc. Bạn vẫn có thể xem lại tin nhắn."
+    "endedNotice": "Hoạt động đã kết thúc. Bạn vẫn có thể xem lại tin nhắn.",
+    "cameraUnavailable": "Thiết bị này không dùng được camera."
   },
   "stickers": {
     "credit": "Hình emoji: Twemoji © Twitter, Inc và những người đóng góp, giấy phép",
@@ -551,7 +556,8 @@
       "vintage": "Cổ điển",
       "fade": "Nhạt",
       "mono": "Đen trắng"
-    }
+    },
+    "holdToRecord": "Nhấn giữ để quay video"
   },
   "chatGallery": {
     "title": "Ảnh và video",
@@ -567,7 +573,9 @@
   "videoViewer": {
     "seek": "Vị trí phát",
     "mute": "Tắt tiếng",
-    "unmute": "Bật tiếng"
+    "unmute": "Bật tiếng",
+    "back10": "Lùi 10 giây",
+    "forward10": "Tới 10 giây"
   },
   "storyGallery": {
     "chooseAlbum": "Chọn album",
@@ -612,5 +620,122 @@
     "musicCount_other": "{{count}} bài hát · Nghe thử trước khi chọn",
     "changeMusic": "{{title}}, chạm để đổi nhạc",
     "prepareFailed": "Nén lỗi, thử lại"
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "unreadCount": "{{count}} chưa đọc",
+    "bellUnread_one": "Thông báo, {{count}} chưa đọc",
+    "bellUnread_other": "Thông báo, {{count}} chưa đọc",
+    "markAllRead": "Đánh dấu tất cả là đã đọc",
+    "settings": "Cài đặt thông báo",
+    "delete": "Xóa",
+    "filters": {
+      "all": "Tất cả",
+      "unread": "Chưa đọc",
+      "activity": "Hoạt động",
+      "chat": "Chat",
+      "friends": "Bạn bè",
+      "story": "Story"
+    },
+    "sections": {
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua",
+      "thisWeek": "Tuần này",
+      "earlier": "Trước đó"
+    },
+    "time": {
+      "now": "Vừa xong",
+      "minutes": "{{count}} phút trước",
+      "hours": "{{count}} giờ trước",
+      "yesterday": "Hôm qua",
+      "days": "{{count}} ngày trước"
+    },
+    "kinds": {
+      "join": "<b>{{name}}</b> đã tham gia <b>{{activity}}</b>",
+      "leave": "<b>{{name}}</b> đã rời <b>{{activity}}</b>",
+      "starting": "<b>{{activity}}</b> bắt đầu sau {{minutes}} phút nữa. Chuẩn bị lên đường thôi!",
+      "checkIn": "<b>{{name}}</b> đã check-in tại <b>{{activity}}</b>",
+      "invite": "<b>{{name}}</b> rủ bạn tham gia <b>{{activity}}</b>",
+      "mention": "<b>{{name}}</b> đã nhắc đến bạn trong <b>{{activity}}</b>",
+      "reply": "<b>{{name}}</b> đã trả lời tin nhắn của bạn trong <b>{{activity}}</b>",
+      "friendRequest": "<b>{{name}}</b> đã gửi cho bạn lời mời kết bạn",
+      "friendRequestAccepted": "Bạn và <b>{{name}}</b> đã là bạn bè",
+      "friendRequestDeclined": "Bạn đã gỡ lời mời kết bạn của <b>{{name}}</b>",
+      "friendAccepted": "<b>{{name}}</b> đã chấp nhận lời mời kết bạn của bạn",
+      "follow": "<b>{{name}}</b> đã bắt đầu theo dõi bạn",
+      "storyReaction": "<b>{{name}}</b> đã bày tỏ cảm xúc {{emoji}} về story của bạn",
+      "storyReply": "<b>{{name}}</b> đã trả lời story của bạn",
+      "friendStory": "<b>{{name}}</b> vừa đăng story mới"
+    },
+    "accept": "Chấp nhận",
+    "decline": "Từ chối",
+    "empty": {
+      "title": "Chưa có thông báo",
+      "message": "Khi có người tham gia hoạt động của bạn, nhắn tin hay rủ bạn đi chơi, bạn sẽ thấy ở đây.",
+      "explore": "Khám phá hoạt động"
+    },
+    "emptyFilter": {
+      "unread": "Bạn đã xem hết thông báo",
+      "other": "Chưa có thông báo nào ở mục này"
+    },
+    "paused": {
+      "title": "Thông báo đang tạm dừng",
+      "message": "Bạn sẽ không nhận thông báo mới cho tới khi bật lại.",
+      "resume": "Bật lại"
+    },
+    "settingsScreen": {
+      "title": "Cài đặt thông báo",
+      "pauseAll": "Tạm dừng tất cả thông báo",
+      "pauseAllHint": "Không nhận thông báo nào cho tới khi bạn tắt mục này.",
+      "sections": {
+        "activity": "Hoạt động",
+        "chat": "Nhóm chat",
+        "friends": "Bạn bè",
+        "story": "Story"
+      },
+      "items": {
+        "members": {
+          "label": "Có người tham gia hoặc rời",
+          "hint": "Hoạt động bạn tổ chức"
+        },
+        "starting": {
+          "label": "Sắp bắt đầu",
+          "hint": "Trước 30 phút với hoạt động bạn đã tham gia"
+        },
+        "checkIns": {
+          "label": "Check-in",
+          "hint": "Khi người khác đã tới nơi"
+        },
+        "invites": {
+          "label": "Lời rủ",
+          "hint": "Khi bạn bè rủ bạn tham gia hoạt động"
+        },
+        "mentions": {
+          "label": "Nhắc đến bạn",
+          "hint": "Kể cả trong nhóm chat đã tắt thông báo"
+        },
+        "replies": {
+          "label": "Trả lời tin nhắn",
+          "hint": "Khi có người trả lời tin của bạn"
+        },
+        "friendRequests": {
+          "label": "Lời mời kết bạn",
+          "hint": "Lời mời mới và khi lời mời của bạn được chấp nhận"
+        },
+        "follows": {
+          "label": "Người theo dõi mới",
+          "hint": "Khi có người theo dõi bạn"
+        },
+        "storyActivity": {
+          "label": "Cảm xúc và trả lời",
+          "hint": "Trên story của bạn"
+        },
+        "friendStories": {
+          "label": "Story của bạn bè",
+          "hint": "Khi bạn bè đăng story"
+        }
+      },
+      "chatNote": "Tin nhắn mới được bật hoặc tắt riêng cho từng nhóm, trong phần thông tin nhóm."
+    }
   }
 }

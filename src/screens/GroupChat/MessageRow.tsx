@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ComponentRef,
   type ReactNode,
 } from 'react';
@@ -13,6 +14,8 @@ import {
   Pressable,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
@@ -37,7 +40,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useVoicePlayback } from '@/hooks/useVoicePlayback';
-import { toggleVoice } from '@/services/audio';
+import { toggleVoice, WAVEFORM_BARS } from '@/services/audio';
 import { splitMentions } from '@/services/chat';
 import { getUser } from '@/services/mockData';
 import { getSticker } from '@/services/stickers';
@@ -52,7 +55,12 @@ import { formatDuration } from '@/utils/format';
 
 import StickerView from '@/components/StickerView';
 import type { MessageFrame } from './MessageReactionMenu';
-import type { GroupChatStyles } from './styles';
+import {
+  MEDIA_TILE_MAX_HEIGHT,
+  MEDIA_TILE_MAX_WIDTH,
+  WAVE_HEIGHT,
+  type GroupChatStyles,
+} from './styles';
 
 const MAX_STACKED_PHOTOS = 3;
 /** A double tap's reaction, as on Messenger. */
@@ -71,7 +79,24 @@ const SHAKE_SWING_MS = 60;
 const SNAP_BACK = { damping: 22, stiffness: 300, mass: 0.7 };
 
 type TapGesture = ReturnType<typeof useTapGesture>;
-const WAVE_BARS = 26;
+/** The quietest bar still shows as a dot. */
+const WAVE_MIN_BAR = ms(3);
+
+/**
+ * For voice notes sent before waves were recorded: a made-up but voice-like
+ * shape (smooth swells, quieter at the ends), the same each time for a note.
+ */
+function placeholderWave(seed: number) {
+  return Array.from({ length: WAVEFORM_BARS }, (_, i) => {
+    const swell =
+      0.5 +
+      0.28 * Math.sin(i * 0.8 + seed) +
+      0.16 * Math.sin(i * 2.1 + seed * 1.7) +
+      0.08 * Math.sin(i * 4.7 + seed * 0.3);
+    const ends = Math.sqrt(Math.sin((Math.PI * (i + 0.5)) / WAVEFORM_BARS));
+    return Math.min(Math.max(swell * ends, 0.12), 1);
+  });
+}
 const NAME_COLORS = ['#E8833A', '#2FA493', '#8E6CD8', '#D95C8A', '#4A90D9'];
 
 function hashOf(value: string) {
@@ -440,7 +465,7 @@ function TapTarget({
 }: {
   doubleTap: TapGesture;
   onTap: () => void;
-  style: object;
+  style: StyleProp<ViewStyle>;
   label: string;
   children: ReactNode;
 }) {
@@ -516,14 +541,14 @@ function VoiceClip({
     message.id,
     voice.durationMs,
   );
-  const bars = useMemo(() => {
-    const seed = hashOf(message.id);
-    return Array.from(
-      { length: WAVE_BARS },
-      (_, i) => 0.25 + (((seed + 1) * (i + 3) * 7919) % 100) / 133,
-    );
-  }, [message.id]);
-  const played = Math.round(progress * WAVE_BARS);
+  const bars = useMemo(
+    () =>
+      voice.waveform?.length
+        ? voice.waveform
+        : placeholderWave(hashOf(message.id)),
+    [voice.waveform, message.id],
+  );
+  const played = progress * bars.length;
   const tint = mine ? colors.background : colors.text;
 
   const toggle = () =>
@@ -553,7 +578,10 @@ function VoiceClip({
             style={[
               styles.waveBar,
               i >= played && styles.waveBarIdle,
-              { height: `${height * 100}%`, backgroundColor: tint },
+              {
+                height: Math.max(WAVE_MIN_BAR, height * WAVE_HEIGHT),
+                backgroundColor: tint,
+              },
             ]}
           />
         ))}
@@ -608,6 +636,8 @@ function PhotoStack({
 }) {
   const { t } = useTranslation();
   const [front, left, right] = photos;
+  // A lone photo takes its own shape.
+  const loneSize = usePhotoSize(photos.length === 1 ? front : undefined);
   const hidden = photos.length - MAX_STACKED_PHOTOS;
   const tile = (photo: ChatPhoto, index: number, style: object) => (
     <TapTarget
@@ -633,7 +663,7 @@ function PhotoStack({
   );
 
   if (photos.length === 1) {
-    return tile(front, 0, [styles.photoSingle]);
+    return tile(front, 0, [styles.photoSingle, tileSize(loneSize)]);
   }
   // Two: the front one against the far edge, the other tilted behind it, so
   // the pair sits flush with the side the message is on.
@@ -683,6 +713,72 @@ function SendingSpinner() {
   return <ActivityIndicator size="large" color={colors.white} />;
 }
 
+/** Taller or wider than this, a lone photo's or a clip's tile is cropped. */
+const TILE_MIN_RATIO = 9 / 16;
+const TILE_MAX_RATIO = 16 / 9;
+
+interface Size {
+  width: number;
+  height: number;
+}
+
+/**
+ * A lone photo's or a clip's own shape, as big as fits the box: tall for a
+ * portrait one, wide for a landscape one. Undefined when its size isn't known.
+ */
+function tileSize(size?: Partial<Size>) {
+  if (!size?.width || !size.height) {
+    return undefined;
+  }
+  const ratio = Math.min(
+    Math.max(size.width / size.height, TILE_MIN_RATIO),
+    TILE_MAX_RATIO,
+  );
+  const width = Math.min(MEDIA_TILE_MAX_WIDTH, MEDIA_TILE_MAX_HEIGHT * ratio);
+  return { width, height: width / ratio };
+}
+
+/** Sizes read from photo files, so each file is read once. */
+const photoSizes = new Map<string, Size>();
+
+/**
+ * A photo's size: given with it, bundled with the app, or read from its file
+ * (e.g. while it's still being sent) and remembered. Undefined until known.
+ */
+function usePhotoSize(photo: ChatPhoto | undefined) {
+  const uri = typeof photo === 'object' ? photo.uri : undefined;
+  const given =
+    typeof photo === 'number'
+      ? Image.resolveAssetSource(photo)
+      : photo?.width && photo.height
+      ? { width: photo.width, height: photo.height }
+      : uri
+      ? photoSizes.get(uri)
+      : undefined;
+  const [read, setRead] = useState<Size>();
+  const known = given !== undefined;
+  useEffect(() => {
+    if (known || !uri) {
+      return;
+    }
+    let live = true;
+    Image.getSize(
+      uri,
+      (width, height) => {
+        photoSizes.set(uri, { width, height });
+        if (live) {
+          setRead({ width, height });
+        }
+      },
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [uri, known]);
+  return given ?? read;
+}
+
 /** A clip: its first frame, a play button and its length. */
 function VideoTile({
   video,
@@ -703,7 +799,7 @@ function VideoTile({
     <TapTarget
       doubleTap={doubleTap}
       onTap={onOpen}
-      style={styles.photoSingle}
+      style={[styles.photoSingle, tileSize(video)]}
       label={t('chat.playVideo')}
     >
       {video.posterUri ? (

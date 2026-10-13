@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type LayoutChangeEvent,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -18,12 +19,14 @@ import {
   useTapGesture,
 } from 'react-native-gesture-handler';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
+import Svg, { Path } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Video, { type VideoRef } from 'react-native-video';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -35,8 +38,30 @@ import { formatDuration } from '@/utils/format';
 
 /** While playing, the controls step aside after this long. */
 const HIDE_CONTROLS_MS = 2500;
-const PLAY_BUTTON = ms(64);
-const THUMB = ms(14);
+/** How far the skip buttons jump. */
+const SKIP_MS = 10000;
+/** While dragging the seek bar, the picture follows at most this often. */
+const SCRUB_PREVIEW_MS = 80;
+/** A report this close to where it was sent means the seek has landed. */
+const SEEK_LANDED_MS = 400;
+/** How often the player reports where it is. */
+const PROGRESS_MS = 250;
+/** A seek that hasn't reported landing by now (e.g. at the very end) is let go. */
+const SEEK_GIVE_UP_MS = 1500;
+const PLAY_BUTTON = ms(58);
+const SKIP_BUTTON = ms(44);
+const SKIP_ICON = ms(34);
+const ROUND_BUTTON = ms(34);
+const THUMB = ms(12);
+/** Room either side of the clip, so its rounded corners show. */
+const FRAME_SIDE = ms(10);
+const FRAME_RADIUS = ms(12);
+const TOP_BAR = ms(56);
+const TRACK_HEIGHT = ms(28);
+const TIMES_HEIGHT = ms(16);
+const BAR_BOTTOM = ms(10);
+/** The strip at the bottom kept for the controls; the clip ends over it. */
+const BOTTOM_BAR = TRACK_HEIGHT + TIMES_HEIGHT + BAR_BOTTOM;
 
 interface Props {
   /** The clip to play; null keeps the viewer closed. */
@@ -45,16 +70,35 @@ interface Props {
 }
 
 /**
- * A chat clip, full screen, with its own controls: play / pause, a bar to
- * seek along (tap or drag), the time, and sound on / off. A tap shows or hides
- * them (they hide by themselves while it plays); drag up or down to close.
+ * A chat clip, full screen, between a top bar (close, sound) and a seek bar
+ * with the times. Over it: back 10 s, play / pause, on 10 s. A tap shows or
+ * hides the controls (they hide by themselves while it plays); drag up or
+ * down to close.
  */
 export default function VideoViewer({ video, onClose }: Props) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
+  const screen = useWindowDimensions();
+  /** Where the clip plays: clear of the top bar and the seek bar. */
+  const videoArea = {
+    top: insets.top + TOP_BAR,
+    bottom: insets.bottom + BOTTOM_BAR,
+  };
   const open = video !== null;
+  /** Width over height, as shown: from the player once loaded. */
+  const [loadedRatio, setLoadedRatio] = useState<number>();
+  const ratio =
+    loadedRatio ??
+    (video?.width && video.height ? video.width / video.height : undefined);
+  const frame = fitFrame(
+    ratio,
+    screen.width - FRAME_SIDE * 2,
+    screen.height - videoArea.top - videoArea.bottom,
+    FRAME_SIDE,
+    videoArea.top,
+  );
   const swipe = useSwipeToDismiss(open, onClose);
 
   const playerRef = useRef<VideoRef>(null);
@@ -65,10 +109,17 @@ export default function VideoViewer({ video, onClose }: Props) {
   const [durationMs, setDurationMs] = useState(video?.durationMs ?? 0);
   const [positionMs, setPositionMs] = useState(0);
   const [controlsShown, setControlsShown] = useState(true);
+  /** Bumped on every touch of a control, to put off hiding them. */
+  const [touchedAt, setTouchedAt] = useState(0);
   /** Played share, 0–1: from the player, or the finger while seeking. */
   const progress = useSharedValue(0);
   const seeking = useSharedValue(false);
   const [barWidth, setBarWidth] = useState(0);
+  /** Dragging the seek bar: held still, the picture following the finger. */
+  const [scrubbing, setScrubbing] = useState(false);
+  /** Where a seek was sent, until the player reports being there. */
+  const seekTarget = useRef<number | null>(null);
+  const lastPreview = useRef(0);
 
   // Fresh for every clip opened.
   useEffect(() => {
@@ -79,6 +130,9 @@ export default function VideoViewer({ video, onClose }: Props) {
       setPositionMs(0);
       setDurationMs(video?.durationMs ?? 0);
       setControlsShown(true);
+      setLoadedRatio(undefined);
+      setScrubbing(false);
+      seekTarget.current = null;
       progress.value = 0;
     }
   }, [open, video, progress]);
@@ -90,9 +144,15 @@ export default function VideoViewer({ video, onClose }: Props) {
     }
     const timer = setTimeout(() => setControlsShown(false), HIDE_CONTROLS_MS);
     return () => clearTimeout(timer);
-  }, [open, controlsShown, paused, ended]);
+  }, [open, controlsShown, paused, ended, touchedAt]);
+
+  const touched = () => {
+    setControlsShown(true);
+    setTouchedAt(Date.now());
+  };
 
   const togglePlay = () => {
+    touched();
     if (ended) {
       playerRef.current?.seek(0);
       progress.value = 0;
@@ -104,10 +164,46 @@ export default function VideoViewer({ video, onClose }: Props) {
   };
 
   const seekTo = (share: number) => {
+    const at = share * durationMs;
+    seekTarget.current = at;
+    setTimeout(() => {
+      if (seekTarget.current === at) {
+        seekTarget.current = null;
+      }
+    }, SEEK_GIVE_UP_MS);
+    playerRef.current?.seek(at / 1000);
+    setPositionMs(at);
+    setEnded(false);
+    touched();
+  };
+
+  const startScrub = () => {
+    setScrubbing(true);
+    touched();
+  };
+  /** The picture and the time follow the finger, a few times a second. */
+  const previewAt = (share: number) => {
+    const now = Date.now();
+    if (now - lastPreview.current < SCRUB_PREVIEW_MS) {
+      return;
+    }
+    lastPreview.current = now;
     playerRef.current?.seek((share * durationMs) / 1000);
     setPositionMs(share * durationMs);
-    setEnded(false);
-    setControlsShown(true);
+  };
+  const endScrub = (share: number) => {
+    setScrubbing(false);
+    seekTo(share);
+  };
+
+  /** Back or on by `deltaMs`, kept inside the clip. */
+  const skip = (deltaMs: number) => {
+    if (durationMs <= 0) {
+      return;
+    }
+    const at = Math.min(Math.max(positionMs + deltaMs, 0), durationMs);
+    progress.value = at / durationMs;
+    seekTo(at / durationMs);
   };
 
   const toggleControls = () => setControlsShown(shown => !shown);
@@ -132,15 +228,17 @@ export default function VideoViewer({ video, onClose }: Props) {
       'worklet';
       seeking.value = true;
       progress.value = shareAt(event.x);
+      scheduleOnRN(startScrub);
     },
     onUpdate: event => {
       'worklet';
       progress.value = shareAt(event.x);
+      scheduleOnRN(previewAt, progress.value);
     },
     onDeactivate: () => {
       'worklet';
       seeking.value = false;
-      scheduleOnRN(seekTo, progress.value);
+      scheduleOnRN(endScrub, progress.value);
     },
   });
 
@@ -157,6 +255,8 @@ export default function VideoViewer({ video, onClose }: Props) {
 
   const measureBar = (event: LayoutChangeEvent) =>
     setBarWidth(event.nativeEvent.layout.width);
+
+  const remainingMs = Math.max(durationMs - positionMs, 0);
 
   return (
     <Modal
@@ -176,46 +276,79 @@ export default function VideoViewer({ video, onClose }: Props) {
         <GestureDetector gesture={gesture}>
           <Animated.View style={[styles.root, swipe.contentStyle]}>
             {video ? (
-              <Video
-                ref={playerRef}
-                source={{ uri: video.uri }}
-                poster={
-                  video.posterUri
-                    ? {
-                        source: { uri: video.posterUri },
-                        resizeMode: 'contain',
-                      }
-                    : undefined
-                }
-                style={styles.fill}
-                resizeMode="contain"
-                paused={paused || ended}
-                muted={muted}
-                progressUpdateInterval={250}
-                onLoad={event => {
-                  setLoading(false);
-                  setDurationMs(event.duration * 1000);
-                }}
-                onReadyForDisplay={() => setLoading(false)}
-                onProgress={event => {
-                  const at = event.currentTime * 1000;
-                  setPositionMs(at);
-                  if (!seeking.value && durationMs > 0) {
-                    progress.value = Math.min(at / durationMs, 1);
+              // Rounded, and just the clip's size, so the corners are its own.
+              <View style={[styles.frame, frame]}>
+                <Video
+                  ref={playerRef}
+                  source={{ uri: video.uri }}
+                  poster={
+                    video.posterUri
+                      ? {
+                          source: { uri: video.posterUri },
+                          resizeMode: 'contain',
+                        }
+                      : undefined
                   }
-                }}
-                onEnd={() => {
-                  setEnded(true);
-                  setControlsShown(true);
-                  setPositionMs(durationMs);
-                  progress.value = 1;
-                }}
-                onError={() => setLoading(false)}
-              />
+                  style={styles.fill}
+                  resizeMode="contain"
+                  paused={paused || ended || scrubbing}
+                  muted={muted}
+                  progressUpdateInterval={PROGRESS_MS}
+                  onLoad={event => {
+                    setLoading(false);
+                    setDurationMs(event.duration * 1000);
+                    const { width, height, orientation } = event.naturalSize;
+                    // Some players report the frame before it's turned upright.
+                    const turned =
+                      (orientation === 'portrait' && width > height) ||
+                      (orientation === 'landscape' && height > width);
+                    if (width > 0 && height > 0) {
+                      setLoadedRatio(turned ? height / width : width / height);
+                    }
+                  }}
+                  onReadyForDisplay={() => setLoading(false)}
+                  onProgress={event => {
+                    const at = event.currentTime * 1000;
+                    // Reports from before a seek lands would pull the bar
+                    // back for a moment; so would any while dragging.
+                    const target = seekTarget.current;
+                    if (target !== null) {
+                      if (Math.abs(at - target) > SEEK_LANDED_MS) {
+                        return;
+                      }
+                      seekTarget.current = null;
+                    }
+                    if (seeking.value || durationMs <= 0) {
+                      return;
+                    }
+                    setPositionMs(at);
+                    const share = Math.min(at / durationMs, 1);
+                    // Glides on to each report while playing, so the bar
+                    // runs instead of stepping; jumps (seeks, a restart)
+                    // land at once.
+                    const step = share - progress.value;
+                    progress.value =
+                      step > 0 && step * durationMs < PROGRESS_MS * 3
+                        ? withTiming(share, {
+                            duration: PROGRESS_MS,
+                            easing: Easing.linear,
+                          })
+                        : share;
+                  }}
+                  onEnd={() => {
+                    seekTarget.current = null;
+                    setEnded(true);
+                    setControlsShown(true);
+                    setPositionMs(durationMs);
+                    progress.value = 1;
+                  }}
+                  onError={() => setLoading(false)}
+                />
+              </View>
             ) : null}
             {/* With a poster there's already something to see. */}
             {loading && !video?.posterUri ? (
-              <View style={styles.center} pointerEvents="none">
+              <View style={[styles.center, videoArea]} pointerEvents="none">
                 <ActivityIndicator size="large" color={colors.white} />
               </View>
             ) : null}
@@ -227,39 +360,53 @@ export default function VideoViewer({ video, onClose }: Props) {
           style={[styles.fill, swipe.chromeStyle]}
           pointerEvents="box-none"
         >
-          {/* Hidden, the controls take no taps (a tap shows them again). */}
+          {/* Hidden, the controls (close too) take no taps; a tap shows them
+              again. */}
           <Animated.View
             style={[styles.fill, controlsStyle]}
             pointerEvents={controlsShown ? 'box-none' : 'none'}
           >
-            <View style={styles.center} pointerEvents="box-none">
-              <Pressable
-                onPress={togglePlay}
-                style={({ pressed }) => [
-                  styles.playButton,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  paused || ended ? t('chat.play') : t('chat.pause')
-                }
-              >
-                <Icon
-                  name={ended ? 'refresh' : paused ? 'play' : 'pause'}
-                  size={ms(30)}
-                  color={colors.white}
-                  style={paused && !ended ? styles.playIcon : undefined}
+            <View style={[styles.center, videoArea]} pointerEvents="box-none">
+              <View style={styles.transport}>
+                <SkipButton
+                  back
+                  label={t('videoViewer.back10')}
+                  onPress={() => skip(-SKIP_MS)}
+                  styles={styles}
                 />
-              </Pressable>
+                <Pressable
+                  onPress={togglePlay}
+                  style={({ pressed }) => [
+                    styles.round,
+                    styles.playButton,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    paused || ended ? t('chat.play') : t('chat.pause')
+                  }
+                >
+                  <Icon
+                    name={ended ? 'refresh' : paused ? 'play' : 'pause'}
+                    size={ms(26)}
+                    color={colors.white}
+                    style={paused && !ended ? styles.playIcon : undefined}
+                  />
+                </Pressable>
+                <SkipButton
+                  label={t('videoViewer.forward10')}
+                  onPress={() => skip(SKIP_MS)}
+                  styles={styles}
+                />
+              </View>
             </View>
 
             <View
               style={[
                 styles.bottomBar,
-                { paddingBottom: insets.bottom + ms(12) },
+                { paddingBottom: insets.bottom + BAR_BOTTOM },
               ]}
             >
-              <Text style={styles.time}>{formatDuration(positionMs)}</Text>
               <GestureDetector gesture={scrub}>
                 <View
                   style={styles.track}
@@ -273,41 +420,137 @@ export default function VideoViewer({ video, onClose }: Props) {
                   <Animated.View style={[styles.thumb, thumbStyle]} />
                 </View>
               </GestureDetector>
-              <Text style={styles.time}>{formatDuration(durationMs)}</Text>
-              <Pressable
-                onPress={() => setMuted(value => !value)}
-                hitSlop={ms(10)}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  muted ? t('videoViewer.unmute') : t('videoViewer.mute')
-                }
-              >
-                <Icon
-                  name={muted ? 'volume-mute' : 'volume-high'}
-                  size={ms(22)}
-                  color={colors.white}
-                />
-              </Pressable>
+              <View style={styles.times}>
+                <Text style={styles.time}>{formatDuration(positionMs)}</Text>
+                <Text style={styles.time}>-{formatDuration(remainingMs)}</Text>
+              </View>
             </View>
-          </Animated.View>
 
-          <Pressable
-            onPress={onClose}
-            hitSlop={ms(10)}
-            style={[styles.close, { top: insets.top + ms(8) }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
-          >
-            <Icon name="close" size={ms(28)} color={colors.white} />
-          </Pressable>
+            <Pressable
+              onPress={onClose}
+              hitSlop={ms(8)}
+              style={({ pressed }) => [
+                styles.round,
+                styles.roundSmall,
+                styles.topLeft,
+                { top: insets.top + (TOP_BAR - ROUND_BUTTON) / 2 },
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+            >
+              <Icon name="close" size={ms(19)} color={colors.white} />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                touched();
+                setMuted(value => !value);
+              }}
+              hitSlop={ms(8)}
+              style={({ pressed }) => [
+                styles.round,
+                styles.roundSmall,
+                styles.topRight,
+                { top: insets.top + (TOP_BAR - ROUND_BUTTON) / 2 },
+                pressed && styles.pressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                muted ? t('videoViewer.unmute') : t('videoViewer.mute')
+              }
+            >
+              <Icon
+                name={muted ? 'volume-mute' : 'volume-high'}
+                size={ms(16)}
+                color={colors.white}
+              />
+            </Pressable>
+          </Animated.View>
         </Animated.View>
       </GestureHandlerRootView>
     </Modal>
   );
 }
 
+/**
+ * The clip's own rectangle inside the area (`left`, `top` its corner), as big
+ * as fits; the whole area while its shape isn't known.
+ */
+function fitFrame(
+  ratio: number | undefined,
+  areaWidth: number,
+  areaHeight: number,
+  left: number,
+  top: number,
+) {
+  if (!ratio) {
+    return { left, top, width: areaWidth, height: areaHeight };
+  }
+  const width = Math.min(areaWidth, areaHeight * ratio);
+  const height = width / ratio;
+  return {
+    left: left + (areaWidth - width) / 2,
+    top: top + (areaHeight - height) / 2,
+    width,
+    height,
+  };
+}
+
+/**
+ * A ring (centre 18, 19; radius 12) open at the top left, from ten o'clock
+ * round the bottom to just past twelve...
+ */
+const SKIP_ARC = 'M7.1 13.9 A12 12 0 1 0 19.7 7.1';
+/** ...where a solid arrowhead points back into the gap. */
+const SKIP_HEAD = 'M20.2 2.2 L20.2 11.8 L12.4 7 Z';
+
+/** A curled arrow with "10" in it, like the system players'. */
+function SkipButton({
+  back = false,
+  label,
+  onPress,
+  styles,
+}: {
+  back?: boolean;
+  label: string;
+  onPress: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={ms(6)}
+      style={({ pressed }) => [styles.skipButton, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      {/* Drawn turning back; mirrored, it turns on. The number isn't. */}
+      <View style={[styles.skipIcon, !back && styles.mirrored]}>
+        <Svg width={SKIP_ICON} height={SKIP_ICON} viewBox="0 0 36 36">
+          <Path
+            d={SKIP_ARC}
+            fill="none"
+            stroke={colors.white}
+            strokeWidth={2.8}
+            strokeLinecap="round"
+          />
+          <Path
+            d={SKIP_HEAD}
+            fill={colors.white}
+            stroke={colors.white}
+            strokeWidth={1}
+            strokeLinejoin="round"
+          />
+        </Svg>
+      </View>
+      <Text style={[styles.skipText, styles.shadowed]}>10</Text>
+    </Pressable>
+  );
+}
+
 function createStyles(colors: AppColors) {
-  const glass = `${colors.black}59`;
+  const glass = `${colors.white}1F`;
   return StyleSheet.create({
     root: {
       flex: 1,
@@ -324,55 +567,103 @@ function createStyles(colors: AppColors) {
     },
     pressed: {
       opacity: 0.7,
+      transform: [{ scale: 0.94 }],
+    },
+    // Frosted, so they read on a dark or a bright picture alike.
+    round: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: `${colors.white}33`,
+      backgroundColor: glass,
+    },
+    roundSmall: {
+      position: 'absolute',
+      width: ROUND_BUTTON,
+      height: ROUND_BUTTON,
+      borderRadius: ROUND_BUTTON / 2,
+    },
+    topLeft: {
+      left: ms(14),
+    },
+    topRight: {
+      right: ms(14),
+    },
+    transport: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(32),
     },
     playButton: {
       width: PLAY_BUTTON,
       height: PLAY_BUTTON,
       borderRadius: PLAY_BUTTON / 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: glass,
+      backgroundColor: `${colors.black}59`,
     },
     // The play triangle looks centred a touch to the right.
     playIcon: {
-      marginLeft: ms(4),
+      marginLeft: ms(3),
     },
-    // Over a shade, so it reads on a bright picture.
+    // No disc behind them: just the curl, lifted off the picture by a shade.
+    skipButton: {
+      width: SKIP_BUTTON,
+      height: SKIP_BUTTON,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    // A shade round the drawn ring, as on the number.
+    skipIcon: {
+      shadowColor: colors.black,
+      shadowOpacity: 0.5,
+      shadowRadius: ms(4),
+      shadowOffset: { width: 0, height: 0 },
+    },
+    shadowed: {
+      textShadowColor: `${colors.black}99`,
+      textShadowRadius: ms(6),
+      textShadowOffset: { width: 0, height: 0 },
+    },
+    mirrored: {
+      transform: [{ scaleX: -1 }],
+    },
+    // In the ring's middle (a touch below the box's, like the ring).
+    skipText: {
+      position: 'absolute',
+      marginTop: SKIP_ICON / 18,
+      fontSize: fs(10),
+      letterSpacing: -0.3,
+      fontFamily: fonts.bold,
+      color: colors.white,
+    },
+    frame: {
+      position: 'absolute',
+      borderRadius: FRAME_RADIUS,
+      borderCurve: 'continuous',
+      overflow: 'hidden',
+      backgroundColor: colors.black,
+    },
+    // Under the clip, on the black.
     bottomBar: {
       position: 'absolute',
       left: 0,
       right: 0,
       bottom: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(12),
-      paddingTop: ms(32),
-      paddingHorizontal: ms(16),
-      backgroundImage: `linear-gradient(to top, ${colors.black}99 0%, ${colors.black}00 100%)`,
-    },
-    time: {
-      minWidth: ms(34),
-      fontSize: fs(12),
-      fontFamily: fonts.semibold,
-      color: colors.white,
-      fontVariant: ['tabular-nums'],
-      textAlign: 'center',
+      paddingHorizontal: ms(20),
     },
     // Tall enough to catch a finger; the line itself is thin.
     track: {
-      flex: 1,
-      height: ms(32),
+      height: TRACK_HEIGHT,
       justifyContent: 'center',
     },
     trackLine: {
       height: ms(3),
       borderRadius: ms(1.5),
       overflow: 'hidden',
-      backgroundColor: `${colors.white}4D`,
+      backgroundColor: `${colors.white}33`,
     },
     trackFill: {
       height: '100%',
-      backgroundColor: colors.white,
+      backgroundColor: colors.primary,
     },
     thumb: {
       position: 'absolute',
@@ -380,16 +671,21 @@ function createStyles(colors: AppColors) {
       height: THUMB,
       borderRadius: THUMB / 2,
       backgroundColor: colors.white,
+      shadowColor: colors.black,
+      shadowOpacity: 0.3,
+      shadowRadius: ms(3),
+      shadowOffset: { width: 0, height: ms(1) },
     },
-    close: {
-      position: 'absolute',
-      left: ms(14),
-      width: ms(40),
-      height: ms(40),
-      borderRadius: ms(20),
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: glass,
+    times: {
+      height: TIMES_HEIGHT,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    time: {
+      fontSize: fs(11),
+      fontFamily: fonts.semibold,
+      color: `${colors.white}CC`,
+      fontVariant: ['tabular-nums'],
     },
   });
 }

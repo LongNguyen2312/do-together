@@ -41,6 +41,10 @@ export type RootStackParamList = {
   ChatGallery: { activityId: string };
   /** Takes a photo or records a clip, with a filter, for a story. */
   StoryCamera: undefined;
+  /** Everything the user's been notified of, by day. */
+  Notifications: undefined;
+  /** Which notifications come through, or none for a while. */
+  NotificationSettings: undefined;
   /** `filter` comes from the camera. */
   StoryEditor: { media: StoryMedia; filter?: StoryFilterId };
 };

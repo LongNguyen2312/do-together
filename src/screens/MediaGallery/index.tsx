@@ -120,6 +120,8 @@ export default function MediaGalleryScreen({ navigation, route }: Props) {
                 first.durationMs || MAX_CHAT_VIDEO_MS,
                 MAX_CHAT_VIDEO_MS,
               ),
+              width: first.width,
+              height: first.height,
             },
           }
         : { key: Date.now(), photos: chosen.map(asset => asset.uri) },

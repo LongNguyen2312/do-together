@@ -16,6 +16,8 @@ export interface ChatState {
   mutedIds: string[];
   /** Messages the user reported this session. */
   reportedIds: string[];
+  /** Chats the user deleted; one comes back with its next message. */
+  deletedIds: string[];
 }
 
 const initialState: ChatState = {
@@ -23,6 +25,7 @@ const initialState: ChatState = {
   lastReadAt: {},
   mutedIds: [],
   reportedIds: [],
+  deletedIds: [],
 };
 
 type MessageRef = { activityId: string; messageId: string };
@@ -45,9 +48,9 @@ const chatSlice = createSlice({
       state,
       action: PayloadAction<{ activityId: string; message: ChatMessage }>,
     ) => {
-      ensureThread(state, action.payload.activityId).push(
-        action.payload.message,
-      );
+      const { activityId, message } = action.payload;
+      ensureThread(state, activityId).push(message);
+      state.deletedIds = state.deletedIds.filter(id => id !== activityId);
     },
     /** Changes a sent message, e.g. once its media is compressed. */
     updateMessage: (
@@ -102,6 +105,13 @@ const chatSlice = createSlice({
     ) => {
       state.lastReadAt[action.payload.activityId] = action.payload.at;
     },
+    /** Clears the user's copy of a chat and takes it off their list. */
+    deleteChat: (state, action: PayloadAction<string>) => {
+      state.threads[action.payload] = [];
+      if (!state.deletedIds.includes(action.payload)) {
+        state.deletedIds.push(action.payload);
+      }
+    },
     toggleMute: (state, action: PayloadAction<string>) => {
       const ids = state.mutedIds;
       state.mutedIds = ids.includes(action.payload)
@@ -118,6 +128,7 @@ export const {
   reportMessage,
   markRead,
   toggleMute,
+  deleteChat,
 } = chatSlice.actions;
 export default chatSlice.reducer;
 

@@ -21,6 +21,8 @@ import GroupMembersScreen from '@/screens/GroupMembers';
 import HotActivitiesScreen from '@/screens/HotActivities';
 import ImFreeScreen from '@/screens/ImFree';
 import LoginScreen from '@/screens/Login';
+import NotificationSettingsScreen from '@/screens/NotificationSettings';
+import NotificationsScreen from '@/screens/Notifications';
 import OnboardingScreen from '@/screens/Onboarding';
 import SignUpScreen from '@/screens/SignUp';
 import StoryCameraScreen from '@/screens/StoryCamera';
@@ -77,6 +79,11 @@ export default function RootNavigator() {
       <Stack.Screen name="FreeNearbyList" component={FreeNearbyListScreen} />
       <Stack.Screen name="HotActivities" component={HotActivitiesScreen} />
       <Stack.Screen name="Communities" component={CommunitiesScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen
+        name="NotificationSettings"
+        component={NotificationSettingsScreen}
+      />
       <Stack.Screen
         name="StoryGallery"
         component={MediaGalleryScreen}

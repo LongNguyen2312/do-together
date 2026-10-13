@@ -16,6 +16,11 @@ const ROW_GAP = ms(8);
 const INPUT_HEIGHT = ms(46);
 const PHOTO_WIDTH = ms(108);
 const PHOTO_HEIGHT = ms(136);
+/** A voice note's wave: its loudest bar is this tall. */
+export const WAVE_HEIGHT = ms(26);
+/** A lone photo or a clip takes its own shape, inside this box. */
+export const MEDIA_TILE_MAX_WIDTH = ms(240);
+export const MEDIA_TILE_MAX_HEIGHT = ms(300);
 const STICKER_PANEL_HEIGHT = ms(300);
 const STICKER_PANEL_GAP = ms(8);
 /** The panel's room under the message field, gap included. */
@@ -389,19 +394,22 @@ export function createStyles(colors: AppColors) {
     voiceButtonMine: {
       backgroundColor: colors.background,
     },
+    // Thin rounded bars, centred on a line and spread across the width,
+    // like the voice notes in other messengers.
     wave: {
       flex: 1,
-      height: ms(26),
+      height: WAVE_HEIGHT,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: ms(2),
+      justifyContent: 'space-between',
     },
     waveBar: {
-      flex: 1,
-      borderRadius: ms(2),
+      width: ms(2.5),
+      borderRadius: ms(1.25),
     },
+    // Not heard yet.
     waveBarIdle: {
-      opacity: 0.35,
+      opacity: 0.3,
     },
     voiceTime: {
       minWidth: ms(30),
@@ -659,12 +667,25 @@ export function createStyles(colors: AppColors) {
       fontFamily: fonts.medium,
       color: colors.textSecondary,
     },
+    // Grows to the reply bar's height (see Composer), cutting it off from
+    // the top, so the bar seems to rise from behind the field.
+    replyRoom: {
+      overflow: 'hidden',
+    },
+    // Pinned to the room's bottom at its full height, never squeezed by the
+    // room (so it measures true).
+    replyRoomInner: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingBottom: ms(8),
+    },
     replyBar: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: ms(10),
       marginHorizontal: SCREEN_PADDING,
-      marginBottom: ms(8),
       paddingVertical: ms(8),
       paddingRight: ms(12),
       borderRadius: ms(14),
@@ -753,6 +774,22 @@ export function createStyles(colors: AppColors) {
       fontSize: fs(14),
       fontFamily: fonts.medium,
       color: colors.text,
+      fontVariant: ['tabular-nums'],
+    },
+    // Fills the rest of the field, its bars kept to the right.
+    liveWave: {
+      flex: 1,
+      height: ms(24),
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: ms(2),
+      overflow: 'hidden',
+    },
+    liveWaveBar: {
+      width: ms(2.5),
+      borderRadius: ms(1.25),
+      backgroundColor: colors.danger,
     },
     sendButtonRecording: {
       backgroundColor: colors.danger,

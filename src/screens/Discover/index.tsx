@@ -153,7 +153,6 @@ export default function DiscoverScreen({ navigation }: Props) {
       <AppHeader
         title={t('tabs.discover')}
         backgroundColor={colors.background}
-        onNotificationsPress={showComingSoon}
       />
 
       <ScrollView

@@ -27,7 +27,7 @@ export function createStyles(colors: AppColors) {
       alignItems: 'center',
       gap: ms(7),
       marginHorizontal: SCREEN_PADDING,
-      marginTop: ms(10),
+      marginTop: ms(4),
       marginBottom: ms(8),
       paddingHorizontal: ms(13),
       borderRadius: ms(999),

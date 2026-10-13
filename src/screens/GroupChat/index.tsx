@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -68,6 +67,8 @@ const HIGHLIGHT_MS = 1600;
  * seen rather than flickering past.
  */
 const MIN_SENDING_MS = 800;
+/** Between the field and the keyboard, with it up. */
+const KEYBOARD_GAP = ms(8);
 const noop = () => {};
 const rowKey = (row: Row) => row.key;
 
@@ -165,20 +166,15 @@ export default function GroupChatScreen({ navigation, route }: Props) {
     dispatch(markRead({ activityId: activity.id, at: Date.now() }));
   }, [thread, activity.id, dispatch]);
 
-  const [keyboardShown, setKeyboardShown] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener('keyboardWillShow', () =>
-      setKeyboardShown(true),
-    );
-    const hide = Keyboard.addListener('keyboardWillHide', () =>
-      setKeyboardShown(false),
-    );
-    return () => {
-      show.remove();
-      hide.remove();
+  /** Under the field: room for the home indicator, kept with the keyboard up. */
+  const composerBottom = Math.max(insets.bottom, ms(10));
+
+  useEffect(
+    () => () => {
       stopVoice().catch(() => {});
-    };
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!highlightId) {
@@ -369,6 +365,10 @@ export default function GroupChatScreen({ navigation, route }: Props) {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // The field keeps its padding for the home indicator; with the
+        // keyboard up that's taken back here, leaving it a small gap above
+        // the keys. One movement, the keyboard's, rather than a jump too.
+        keyboardVerticalOffset={KEYBOARD_GAP - composerBottom}
       >
         <FlatList
           ref={listRef}
@@ -425,9 +425,7 @@ export default function GroupChatScreen({ navigation, route }: Props) {
             onOpenGallery={() =>
               navigation.navigate('ChatGallery', { activityId: activity.id })
             }
-            bottomPadding={
-              keyboardShown ? ms(8) : Math.max(insets.bottom, ms(10))
-            }
+            bottomPadding={composerBottom}
           />
         )}
       </KeyboardAvoidingView>

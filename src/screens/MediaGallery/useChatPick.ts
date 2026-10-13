@@ -70,6 +70,8 @@ export function useChatPick() {
             durationMs || MAX_CHAT_VIDEO_MS,
             MAX_CHAT_VIDEO_MS,
           ),
+          width: video.width,
+          height: video.height,
         },
       };
     }

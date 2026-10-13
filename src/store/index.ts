@@ -16,6 +16,7 @@ import appReducer from './slices/appSlice';
 import authReducer from './slices/authSlice';
 import broadcastReducer from './slices/broadcastSlice';
 import chatReducer from './slices/chatSlice';
+import notificationReducer from './slices/notificationSlice';
 import storyReducer from './slices/storySlice';
 
 const appPersistConfig = {
@@ -41,6 +42,14 @@ const chatPersistConfig = {
   key: 'chat',
   storage: AsyncStorage,
   whitelist: ['mutedIds'],
+};
+
+// The notifications themselves are seeded at app start; what the user did to
+// them, and their settings, carry over.
+const notificationPersistConfig = {
+  key: 'notification',
+  storage: AsyncStorage,
+  whitelist: ['readIds', 'deletedIds', 'answers', 'settings'],
 };
 
 // Picked photos live in a temp folder, so only what was seen survives a restart.
@@ -69,6 +78,7 @@ const rootReducer = combineReducers({
   auth: persistReducer(authPersistConfig, authReducer),
   broadcast: persistReducer(broadcastPersistConfig, broadcastReducer),
   chat: persistReducer(chatPersistConfig, chatReducer),
+  notification: persistReducer(notificationPersistConfig, notificationReducer),
   story: persistReducer(storyPersistConfig, storyReducer),
 });
 

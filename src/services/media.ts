@@ -1,3 +1,4 @@
+import { Image as RNImage } from 'react-native';
 import { createVideoThumbnail, Image, Video } from 'react-native-compressor';
 
 import type { ChatPhoto, ChatPick, ChatVideo } from '@/types/chat';
@@ -75,6 +76,16 @@ export async function videoPoster(uri: string) {
   return compressPhoto(path, POSTER_MAX_SIZE);
 }
 
+/** A picture's size in pixels; undefined if it can't be read. */
+const sizeOf = (uri: string) =>
+  new Promise<{ width: number; height: number } | undefined>(resolve =>
+    RNImage.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      () => resolve(undefined),
+    ),
+  );
+
 /**
  * A chat pick, ready to send: photos as JPEGs, a clip at 720p with its
  * poster. Never the originals.
@@ -84,17 +95,19 @@ export async function prepareChatMedia(pick: ChatPick): Promise<{
   video?: ChatVideo;
 }> {
   if (pick.video) {
+    const { width, height, durationMs } = pick.video;
     const uri = await compressVideo(pick.video.uri);
-    return {
-      video: {
-        uri,
-        durationMs: pick.video.durationMs,
-        posterUri: await videoPoster(uri),
-      },
-    };
+    const posterUri = await videoPoster(uri);
+    // Its shape for the tile: from the pick, else from the first frame.
+    const size = width && height ? { width, height } : await sizeOf(posterUri);
+    return { video: { uri, durationMs, posterUri, ...size } };
   }
+  // Sized for a lone photo's tile, which takes its shape.
   const photos = await Promise.all(
-    (pick.photos ?? []).map(uri => compressPhoto(uri)),
+    (pick.photos ?? []).map(async original => {
+      const uri = await compressPhoto(original);
+      return { uri, ...(await sizeOf(uri)) };
+    }),
   );
-  return { photos: photos.map(uri => ({ uri })) };
+  return { photos };
 }

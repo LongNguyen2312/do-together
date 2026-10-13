@@ -28,6 +28,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 
 import { useConfirm } from '@/components/ConfirmDialog';
 import PulseDot from '@/components/PulseDot';
+import ScreenHeader, { HeaderButton } from '@/components/ScreenHeader';
 import { useIncomingChatDemo } from '@/hooks/useIncomingChatDemo';
 import { useJoinActivity } from '@/hooks/useJoinActivity';
 import {
@@ -64,7 +65,7 @@ import { defaultMapStyle, mapStyleUrl } from '@/utils/mapStyles';
 import { LiveMapMarkers, useLiveBounds } from './LiveMap';
 import LiveMapModal from './LiveMapModal';
 import NearbyCard from './NearbyCard';
-import { createStyles, type ActivityDetailStyles } from './styles';
+import { createStyles } from './styles';
 import { ARRIVED_RADIUS_M, useLiveMembers } from './useLiveMembers';
 
 /** Simulated join round-trip until the API exists. */
@@ -258,22 +259,12 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <HeaderButton
-          icon="chevron-back"
-          label={t('auth.back')}
-          onPress={navigation.goBack}
-          styles={styles}
-          color={colors.text}
-        />
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerBrand}>{t('common.appName')}</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {t('activityDetail.title')}
-          </Text>
-        </View>
-        <View style={styles.headerActions}>
-          {readOnly ? null : (
+      <ScreenHeader
+        title={t('activityDetail.title')}
+        onBack={navigation.goBack}
+        showBrand
+        actions={
+          readOnly ? null : (
             <>
               <HeaderButton
                 icon={saved ? 'bookmark' : 'bookmark-outline'}
@@ -281,20 +272,17 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
                   saved ? 'activityDetail.saved' : 'activityDetail.save',
                 )}
                 onPress={() => setSaved(prev => !prev)}
-                styles={styles}
                 color={saved ? colors.primary : colors.text}
               />
               <HeaderButton
                 icon="share-social-outline"
                 label={t('activityDetail.share')}
                 onPress={onShare}
-                styles={styles}
-                color={colors.text}
               />
             </>
-          )}
-        </View>
-      </View>
+          )
+        }
+      />
 
       <ScrollView
         contentContainerStyle={[
@@ -953,31 +941,5 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
         />
       ) : null}
     </SafeAreaView>
-  );
-}
-
-function HeaderButton({
-  icon,
-  label,
-  onPress,
-  color,
-  styles,
-}: {
-  icon: string;
-  label: string;
-  onPress: () => void;
-  color: string;
-  styles: ActivityDetailStyles;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={6}
-      style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Icon name={icon} size={ms(19)} color={color} />
-    </Pressable>
   );
 }
