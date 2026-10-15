@@ -341,6 +341,13 @@ function TabButton({
 }
 
 function createStyles(colors: AppColors) {
+  // The bar and the + float alike over the page, glass or not.
+  const floating = {
+    shadowColor: colors.black,
+    shadowOpacity: 0.12,
+    shadowRadius: ms(14),
+    shadowOffset: { width: 0, height: ms(6) },
+  };
   return StyleSheet.create({
     container: {
       position: 'absolute',
@@ -357,10 +364,7 @@ function createStyles(colors: AppColors) {
       width: FREE_SIZE,
       height: FREE_SIZE,
       borderRadius: FREE_SIZE / 2,
-      shadowColor: colors.black,
-      shadowOpacity: 0.12,
-      shadowRadius: ms(14),
-      shadowOffset: { width: 0, height: ms(6) },
+      ...floating,
     },
     freeFallback: {
       backgroundColor: colors.primarySoft,
@@ -379,6 +383,7 @@ function createStyles(colors: AppColors) {
     bar: {
       ...StyleSheet.absoluteFill,
       borderRadius: BAR_HEIGHT / 2,
+      ...floating,
     },
     tabs: {
       ...StyleSheet.absoluteFill,
@@ -414,11 +419,7 @@ function createStyles(colors: AppColors) {
     },
     barFallback: {
       backgroundColor: colors.card,
-      shadowColor: colors.black,
-      shadowOpacity: 0.12,
-      shadowRadius: ms(16),
-      shadowOffset: { width: 0, height: ms(6) },
-      elevation: 8,
+      elevation: 6,
     },
     tab: {
       flex: 1,

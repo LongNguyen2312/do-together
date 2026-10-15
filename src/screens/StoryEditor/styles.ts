@@ -40,6 +40,9 @@ export function createStyles(colors: AppColors) {
   /** The ✕'s see-through dark as it looks over a photo, on plain black. */
   const shareButton = `${colors.white}33`;
   return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
     root: {
       flex: 1,
       backgroundColor: colors.black,

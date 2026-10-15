@@ -17,6 +17,7 @@ import authReducer from './slices/authSlice';
 import broadcastReducer from './slices/broadcastSlice';
 import chatReducer from './slices/chatSlice';
 import notificationReducer from './slices/notificationSlice';
+import placesReducer from './slices/placesSlice';
 import storyReducer from './slices/storySlice';
 
 const appPersistConfig = {
@@ -28,7 +29,7 @@ const appPersistConfig = {
 const authPersistConfig = {
   key: 'auth',
   storage: AsyncStorage,
-  whitelist: ['isAuthenticated', 'user'],
+  whitelist: ['isAuthenticated', 'user', 'savedInterests'],
 };
 
 const broadcastPersistConfig = {
@@ -41,7 +42,7 @@ const broadcastPersistConfig = {
 const chatPersistConfig = {
   key: 'chat',
   storage: AsyncStorage,
-  whitelist: ['mutedIds'],
+  whitelist: ['mutedIds', 'leftIds', 'clearedAt'],
 };
 
 // The notifications themselves are seeded at app start; what the user did to
@@ -69,6 +70,8 @@ const activityPersistConfig = {
     'joinedCommunityIds',
     'followedUserIds',
     'friendRequestIds',
+    'unfriendedIds',
+    'savedIds',
   ],
 };
 
@@ -79,6 +82,8 @@ const rootReducer = combineReducers({
   broadcast: persistReducer(broadcastPersistConfig, broadcastReducer),
   chat: persistReducer(chatPersistConfig, chatReducer),
   notification: persistReducer(notificationPersistConfig, notificationReducer),
+  // Not kept: fetched afresh every time the app starts.
+  places: placesReducer,
   story: persistReducer(storyPersistConfig, storyReducer),
 });
 

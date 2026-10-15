@@ -47,12 +47,20 @@ interface CustomActivitySheetProps {
   visible: boolean;
   onClose: () => void;
   onSave: (activity: CustomActivity) => void;
+  /** Its words, for making something other than an activity, e.g. an interest. */
+  labels?: {
+    title: string;
+    nameLabel: string;
+    placeholder: string;
+    save: string;
+  };
 }
 
 export default function CustomActivitySheet({
   visible,
   onClose,
   onSave,
+  labels,
 }: CustomActivitySheetProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -203,7 +211,9 @@ export default function CustomActivitySheet({
             bounces={false}
           >
             <View style={styles.handle} />
-            <Text style={styles.title}>{t('imFree.custom.title')}</Text>
+            <Text style={styles.title}>
+              {labels?.title ?? t('imFree.custom.title')}
+            </Text>
 
             <View style={styles.photoRow}>
               <Pressable
@@ -291,19 +301,25 @@ export default function CustomActivitySheet({
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>{t('imFree.custom.nameLabel')}</Text>
+              <Text style={styles.label}>
+                {labels?.nameLabel ?? t('imFree.custom.nameLabel')}
+              </Text>
               <TextInput
                 ref={inputRef}
                 value={name}
                 onChangeText={setName}
-                placeholder={t('imFree.otherPlaceholder')}
+                placeholder={
+                  labels?.placeholder ?? t('imFree.otherPlaceholder')
+                }
                 placeholderTextColor={colors.textMuted}
                 selectionColor={colors.primary}
                 maxLength={CUSTOM_ACTIVITY_MAX_LENGTH}
                 returnKeyType="done"
                 onSubmitEditing={trimmed ? save : undefined}
                 style={styles.input}
-                accessibilityLabel={t('imFree.custom.nameLabel')}
+                accessibilityLabel={
+                  labels?.nameLabel ?? t('imFree.custom.nameLabel')
+                }
               />
             </View>
 
@@ -316,7 +332,7 @@ export default function CustomActivitySheet({
                 <Text style={styles.cancelText}>{t('common.cancel')}</Text>
               </Pressable>
               <PrimaryButton
-                title={t('imFree.custom.save')}
+                title={labels?.save ?? t('imFree.custom.save')}
                 onPress={save}
                 disabled={!trimmed}
                 style={styles.confirm}

@@ -19,6 +19,7 @@ import {
   BARE_ICON,
   HeaderButton,
 } from '@/components/ScreenHeader';
+import UserAvatar from '@/components/UserAvatar';
 import { useAppSelector } from '@/store/hooks';
 import { selectUnreadCount } from '@/store/slices/notificationSlice';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
@@ -62,6 +63,7 @@ export default function AppHeader({
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const unread = useAppSelector(selectUnreadCount);
+  const avatarUri = useAppSelector(state => state.auth.user?.avatarUri);
   const paused = useAppSelector(state => state.notification.settings.paused);
 
   // Something new: the bell rings, swinging from its top.
@@ -131,7 +133,12 @@ export default function AppHeader({
             accessibilityRole="button"
             accessibilityLabel={t('tabs.profile')}
           >
-            <Icon name="person" size={ms(13)} color={colors.white} />
+            {/* Their photo once they've set one. */}
+            {avatarUri ? (
+              <UserAvatar size={PROFILE_BUTTON} name="" uri={avatarUri} />
+            ) : (
+              <Icon name="person" size={ms(13)} color={colors.white} />
+            )}
           </Pressable>
         ) : null}
       </View>

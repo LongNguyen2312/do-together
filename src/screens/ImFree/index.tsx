@@ -16,13 +16,17 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { launchImageLibrary } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ms } from 'react-native-size-matters';
 
+import LogoLoader from '@/components/LogoLoader';
 import PrimaryButton from '@/components/PrimaryButton';
+import ScreenHeader from '@/components/ScreenHeader';
 import PulseDot from '@/components/PulseDot';
 import RangeSlider from '@/components/RangeSlider';
-import { freeUsersWithin } from '@/services/mockData';
+import { compressPhoto } from '@/services/media';
+import { CATEGORY_EMOJI, freeUsersWithin } from '@/services/mockData';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   removeCustomActivity,
@@ -81,6 +85,9 @@ export default function ImFreeScreen({ navigation }: Props) {
   const [keyboardShown, setKeyboardShown] = useState(false);
   const [customTime, setCustomTime] = useState<BroadcastTime | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  /** One photo saying what it's about; the signal's picture when there is one. */
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
   const customSelected = when === 'custom' && customTime !== null;
 
   // Android resizes the window (adjustResize), which would lift the footer above the keyboard.
@@ -145,6 +152,44 @@ export default function ImFreeScreen({ navigation }: Props) {
     );
   };
 
+  const pickPhoto = async () => {
+    Keyboard.dismiss();
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
+      selectionLimit: 1,
+    });
+    if (result.errorCode) {
+      Alert.alert(t('imFree.photo.errorTitle'), result.errorMessage);
+      return;
+    }
+    const uri = result.assets?.[0]?.uri;
+    if (!uri) {
+      return;
+    }
+    setPhotoLoading(true);
+    try {
+      setPhoto(await compressPhoto(uri));
+    } catch {
+      Alert.alert(t('imFree.photo.errorTitle'));
+    } finally {
+      setPhotoLoading(false);
+    }
+  };
+
+  // What others see the signal by: the photo if there is one, else the
+  // activity's own picture, as before.
+  const thumbnail = photo ? (
+    <Image source={{ uri: photo }} style={styles.previewThumb} />
+  ) : selectedCustom?.image ? (
+    <Image source={{ uri: selectedCustom.image }} style={styles.previewThumb} />
+  ) : (
+    <View style={[styles.previewThumb, styles.previewThumbArt]}>
+      <Text style={styles.previewEmoji}>
+        {selectedCustom?.emoji ?? CATEGORY_EMOJI[activity]}
+      </Text>
+    </View>
+  );
+
   const onBroadcast = () => {
     Keyboard.dismiss();
     setBroadcasting(true);
@@ -160,22 +205,7 @@ export default function ImFreeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Pressable
-            onPress={navigation.goBack}
-            hitSlop={8}
-            style={styles.iconButton}
-            accessibilityRole="button"
-            accessibilityLabel={t('auth.back')}
-          >
-            <Icon name="arrow-back" size={ms(22)} color={colors.text} />
-          </Pressable>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {t('imFree.title')}
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader title={t('imFree.title')} onBack={navigation.goBack} />
 
       <View style={styles.flex}>
         <ScrollView
@@ -382,6 +412,90 @@ export default function ImFreeScreen({ navigation }: Props) {
                 max: NOTE_MAX_LENGTH,
               })}
             </Text>
+          </View>
+
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardTitleRow}>
+                <Icon
+                  name="image-outline"
+                  size={ms(17)}
+                  color={colors.textSecondary}
+                />
+                <Text style={styles.cardTitle}>{t('imFree.photo.title')}</Text>
+              </View>
+              <Text style={styles.hint}>{t('imFree.photo.limit')}</Text>
+            </View>
+            {photo ? (
+              <View style={styles.photoBox}>
+                <Image source={{ uri: photo }} style={styles.photo} />
+                <Pressable
+                  onPress={() => setPhoto(null)}
+                  hitSlop={ms(8)}
+                  style={styles.photoRemove}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('imFree.photo.remove')}
+                >
+                  <Icon name="close" size={ms(16)} color={colors.white} />
+                </Pressable>
+                <Pressable
+                  onPress={pickPhoto}
+                  style={({ pressed }) => [
+                    styles.photoChange,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                >
+                  <Icon
+                    name="images-outline"
+                    size={ms(14)}
+                    color={colors.white}
+                  />
+                  <Text style={styles.photoChangeText}>
+                    {t('imFree.photo.change')}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={pickPhoto}
+                disabled={photoLoading}
+                style={({ pressed }) => [
+                  styles.photoAdd,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+              >
+                {photoLoading ? (
+                  <LogoLoader color={colors.primary} />
+                ) : (
+                  <>
+                    <Icon
+                      name="camera-outline"
+                      size={ms(22)}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.photoAddText}>
+                      {t('imFree.photo.add')}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            )}
+            {/* How the signal shows to others: this picture, then what it's for. */}
+            <View style={styles.preview}>
+              {thumbnail}
+              <View style={styles.previewText}>
+                <Text style={styles.previewTitle} numberOfLines={1}>
+                  {activityLabel}
+                </Text>
+                <Text style={styles.hint} numberOfLines={1}>
+                  {photo
+                    ? t('imFree.photo.previewPhoto')
+                    : t('imFree.photo.previewActivity')}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <View style={styles.card}>

@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
-import { CATEGORY_EMOJI, isFriend } from '@/services/mockData';
+import { useFriendIds } from '@/hooks/useFriends';
+import { CATEGORY_EMOJI } from '@/services/mockData';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   cancelFriendRequest,
@@ -38,7 +39,7 @@ export default function NearbyCard({
   const { t } = useTranslation();
   const { colors } = useTheme();
   const dispatch = useAppDispatch();
-  const friend = isFriend(person.id);
+  const friend = useFriendIds().has(person.id);
   const following = useAppSelector(state =>
     state.activity.followedUserIds.includes(person.id),
   );

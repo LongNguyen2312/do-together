@@ -1,5 +1,6 @@
 import { createSound } from 'react-native-nitro-sound';
 
+import { http } from '@/services/api';
 import type { MusicTrack } from '@/types/story';
 import { MUSIC_BASE_URL } from '@/utils/constants';
 
@@ -24,16 +25,12 @@ export function fetchMusicTracks(refresh = false) {
   // R2 sends no Cache-Control, so the phone would keep an old list for hours
   // (going by Last-Modified); a fresh query skips its HTTP cache. The list
   // is tiny, and the songs themselves still cache.
-  tracks ??= fetch(`${MUSIC_BASE_URL}/music/manifest.json?t=${Date.now()}`, {
-    headers: { 'Cache-Control': 'no-cache' },
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`Music list failed: ${response.status}`);
-      }
-      return response.json() as Promise<ManifestEntry[]>;
+  tracks ??= http
+    .get<ManifestEntry[]>(`${MUSIC_BASE_URL}/music/manifest.json`, {
+      params: { t: Date.now() },
+      headers: { 'Cache-Control': 'no-cache' },
     })
-    .then(entries =>
+    .then(({ data: entries }) =>
       entries.map(entry => ({
         id: entry.id,
         title: entry.title,

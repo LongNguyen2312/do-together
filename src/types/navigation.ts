@@ -34,13 +34,34 @@ export type RootStackParamList = {
   HotActivities: { category: 'all' | ActivityCategory };
   Communities: { category: 'all' | ActivityCategory };
   /** Plays each person's stories in turn, starting at `startIndex`. */
-  StoryViewer: { userIds: string[]; startIndex: number };
+  /**
+   * `pinned` shows the user's stories pinned to their profile instead of
+   * their live ones, from the `storyIndex`th.
+   */
+  StoryViewer: {
+    userIds: string[];
+    startIndex: number;
+    pinned?: boolean;
+    storyIndex?: number;
+  };
   /** The camera and the phone's photos and videos, to start a story. */
   StoryGallery: undefined;
   /** The same gallery, picking photos or a clip to send in a group chat. */
   ChatGallery: { activityId: string };
   /** Takes a photo or records a clip, with a filter, for a story. */
   StoryCamera: undefined;
+  /** The user's photo, name, bio and interests. */
+  EditProfile: undefined;
+  /** Friends who like some of the same things as the user. */
+  FriendsInCommon: undefined;
+  /** Someone else's profile. */
+  UserProfile: { userId: string };
+  /** A community: about it, its members, what's coming up; joining it. */
+  CommunityDetail: { communityId: string };
+  /** The user's friends, or the people following them. */
+  People: { kind: 'friends' | 'followers' };
+  /** Notifications, language, light or dark, logging out. */
+  Settings: undefined;
   /** Everything the user's been notified of, by day. */
   Notifications: undefined;
   /** Which notifications come through, or none for a while. */

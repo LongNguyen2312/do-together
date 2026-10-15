@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import {
   GestureDetector,
+  useLongPressGesture,
   usePanGesture,
   usePinchGesture,
   useSimultaneousGestures,
@@ -21,6 +22,8 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 
 const MAX_SCALE = 4;
+/** Held this long, a photo offers its menu. */
+const LONG_PRESS_MS = 450;
 /** Where a double tap zooms to. */
 const DOUBLE_TAP_SCALE = 2.5;
 /** Settles without wobbling past where it's going. */
@@ -32,6 +35,8 @@ interface Props {
   height: number;
   /** Zoomed in or back out, once a gesture's done. */
   onZoomChange: (zoomed: boolean) => void;
+  /** Held down: e.g. a menu to save it. None, nothing happens. */
+  onLongPress?: () => void;
 }
 
 /**
@@ -39,7 +44,13 @@ interface Props {
  * zoom, and drag around once zoomed, kept from sliding off its edges. Not
  * zoomed, one-finger drags are left to whatever's around it (paging, closing).
  */
-function ZoomablePhoto({ source, width, height, onZoomChange }: Props) {
+function ZoomablePhoto({
+  source,
+  width,
+  height,
+  onZoomChange,
+  onLongPress,
+}: Props) {
   /** Zoomed in: one finger moves the picture. */
   const [zoomedIn, setZoomedIn] = useState(false);
   const zoomChanged = (now: boolean) => {
@@ -144,7 +155,18 @@ function ZoomablePhoto({ source, width, height, onZoomChange }: Props) {
     },
   });
 
-  const gesture = useSimultaneousGestures(pinch, pan, doubleTap);
+  const hold = useLongPressGesture({
+    enabled: !!onLongPress,
+    minDuration: LONG_PRESS_MS,
+    onActivate: () => {
+      'worklet';
+      if (onLongPress) {
+        scheduleOnRN(onLongPress);
+      }
+    },
+  });
+
+  const gesture = useSimultaneousGestures(pinch, pan, doubleTap, hold);
 
   const style = useAnimatedStyle(() => ({
     transform: [

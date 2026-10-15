@@ -72,13 +72,28 @@ export const liveStories = (stories: Story[], now = Date.now()) =>
     .filter(story => now - story.postedAt < STORY_TTL_MS)
     .sort((a, b) => a.postedAt - b.postedAt);
 
+/** The user's stories pinned to their profile, live or not, the latest pinned first. */
+export const pinnedStories = (
+  stories: readonly Story[],
+  pinnedIds: readonly string[],
+) =>
+  [...pinnedIds]
+    .reverse()
+    .map(id => stories.find(story => story.id === id))
+    .filter((story): story is Story => !!story);
+
 /** Friends with live stories: unseen first, then the most recent. */
 export function friendStoryGroups(
   seenIds: ReadonlySet<string>,
   now = Date.now(),
+  /** Friends now, less anyone unfriended; the mock list without it. */
+  friendIds?: ReadonlySet<string>,
 ): StoryGroup[] {
   const byUser = new Map<string, Story[]>();
   for (const story of liveStories(FRIEND_STORIES, now)) {
+    if (friendIds && !friendIds.has(story.userId)) {
+      continue;
+    }
     byUser.set(story.userId, [...(byUser.get(story.userId) ?? []), story]);
   }
   return [...byUser]

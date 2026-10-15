@@ -4,8 +4,10 @@ import {
   Text,
   TextInput,
   View,
+  type StyleProp,
   type TextInputInstance,
   type TextInputProps,
+  type TextStyle,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ms } from 'react-native-size-matters';
@@ -14,6 +16,8 @@ import { fonts, useTheme, type AppColors } from '@/theme';
 
 interface FormFieldProps extends TextInputProps {
   label: string;
+  /** e.g. a bigger, darker title where the field heads its own section. */
+  labelStyle?: StyleProp<TextStyle>;
   /** Ionicons name rendered before the input. */
   icon: string;
   error?: string;
@@ -27,6 +31,7 @@ interface FormFieldProps extends TextInputProps {
 
 export default function FormField({
   label,
+  labelStyle,
   icon,
   error,
   labelAccessory,
@@ -44,7 +49,7 @@ export default function FormField({
   return (
     <View style={styles.field}>
       <View style={styles.labelRow}>
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, labelStyle]}>{label}</Text>
         {labelAccessory}
       </View>
       <View

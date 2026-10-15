@@ -1,8 +1,17 @@
-import { Image, Text, View, type ImageSourcePropType } from 'react-native';
+import {
+  Image,
+  Pressable,
+  Text,
+  View,
+  type ImageSourcePropType,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
 import { getUser } from '@/services/mockData';
 import type { Activity } from '@/types/activity';
+import type { RootStackParamList } from '@/types/navigation';
 import { initialsOf } from '@/utils/format';
 
 import type { GroupChatInfoStyles } from './styles';
@@ -29,6 +38,7 @@ export function groupMembers(activity: Activity, myName: string) {
   return [...members, { id: 'me', name: myName, role: 'me' } as GroupMember];
 }
 
+/** A member; anyone but the user opens their profile. */
 export default function MemberRow({
   member,
   styles,
@@ -37,8 +47,16 @@ export default function MemberRow({
   styles: GroupChatInfoStyles;
 }) {
   const { t } = useTranslation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const isMe = member.role === 'me';
   return (
-    <View style={styles.memberRow}>
+    <Pressable
+      onPress={() => navigation.navigate('UserProfile', { userId: member.id })}
+      disabled={isMe}
+      style={({ pressed }) => [styles.memberRow, pressed && styles.pressed]}
+      accessibilityRole={isMe ? undefined : 'button'}
+    >
       {member.avatar ? (
         <Image source={member.avatar} style={styles.memberAvatar} />
       ) : (
@@ -58,6 +76,6 @@ export default function MemberRow({
           </Text>
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Animated,
   Image,
   Modal,
@@ -20,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ms } from 'react-native-size-matters';
 
+import LogoLoader from '@/components/LogoLoader';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
 import type { MapStyleId } from '@/types/map';
 import { MAX_CONTENT_WIDTH } from '@/utils/constants';
@@ -208,7 +208,7 @@ export default function MapStylePicker({
                       {uri ? (
                         <Image source={{ uri }} style={styles.previewImage} />
                       ) : (
-                        <ActivityIndicator color={colors.textSecondary} />
+                        <LogoLoader color={colors.textSecondary} />
                       )}
                       {active ? (
                         <View style={styles.check}>

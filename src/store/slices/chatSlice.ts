@@ -16,8 +16,13 @@ export interface ChatState {
   mutedIds: string[];
   /** Messages the user reported this session. */
   reportedIds: string[];
-  /** Chats the user deleted; one comes back with its next message. */
-  deletedIds: string[];
+  /**
+   * When the user cleared each chat (epoch ms): messages up to then are gone
+   * for them, though they're still in the group and get what comes next.
+   */
+  clearedAt: Record<string, number>;
+  /** Groups the user left: off their list until they join or open it again. */
+  leftIds: string[];
 }
 
 const initialState: ChatState = {
@@ -25,7 +30,8 @@ const initialState: ChatState = {
   lastReadAt: {},
   mutedIds: [],
   reportedIds: [],
-  deletedIds: [],
+  clearedAt: {},
+  leftIds: [],
 };
 
 type MessageRef = { activityId: string; messageId: string };
@@ -33,7 +39,7 @@ type MessageRef = { activityId: string; messageId: string };
 // Copies of the seed, not the cached messages themselves: a change makes a new
 // message (so its row re-renders) and the cache stays as it was.
 const ensureThread = (state: ChatState, activityId: string) =>
-  (state.threads[activityId] ??= seedThread(activityId).messages.map(
+  (state.threads[activityId] ??= seedAfterClear(state, activityId).map(
     message => ({
       ...message,
       reactions: message.reactions?.map(reaction => ({ ...reaction })),
@@ -50,7 +56,6 @@ const chatSlice = createSlice({
     ) => {
       const { activityId, message } = action.payload;
       ensureThread(state, activityId).push(message);
-      state.deletedIds = state.deletedIds.filter(id => id !== activityId);
     },
     /** Changes a sent message, e.g. once its media is compressed. */
     updateMessage: (
@@ -105,12 +110,23 @@ const chatSlice = createSlice({
     ) => {
       state.lastReadAt[action.payload.activityId] = action.payload.at;
     },
-    /** Clears the user's copy of a chat and takes it off their list. */
+    /**
+     * Clears the chat's messages and history on the user's side only: they
+     * stay in the group, it stays on their list, and new messages show.
+     */
     deleteChat: (state, action: PayloadAction<string>) => {
       state.threads[action.payload] = [];
-      if (!state.deletedIds.includes(action.payload)) {
-        state.deletedIds.push(action.payload);
+      state.clearedAt[action.payload] = Date.now();
+    },
+    leaveChat: (state, action: PayloadAction<string>) => {
+      if (!state.leftIds.includes(action.payload)) {
+        state.leftIds.push(action.payload);
       }
+      state.mutedIds = state.mutedIds.filter(id => id !== action.payload);
+    },
+    /** Back in a group they'd left, e.g. on joining its community again. */
+    rejoinChat: (state, action: PayloadAction<string>) => {
+      state.leftIds = state.leftIds.filter(id => id !== action.payload);
     },
     toggleMute: (state, action: PayloadAction<string>) => {
       const ids = state.mutedIds;
@@ -129,11 +145,32 @@ export const {
   markRead,
   toggleMute,
   deleteChat,
+  leaveChat,
+  rejoinChat,
 } = chatSlice.actions;
 export default chatSlice.reducer;
 
+/** Seed threads past a clear, kept so the same clear gives the same array. */
+const clearedSeeds = new Map<string, ChatMessage[]>();
+
+/** A chat's starting messages, less any from before the user cleared it. */
+function seedAfterClear(chat: ChatState, activityId: string) {
+  const seed = seedThread(activityId).messages;
+  const cleared = chat.clearedAt[activityId];
+  if (!cleared) {
+    return seed;
+  }
+  const key = `${activityId}@${cleared}`;
+  let kept = clearedSeeds.get(key);
+  if (!kept) {
+    kept = seed.filter(message => message.sentAt > cleared);
+    clearedSeeds.set(key, kept);
+  }
+  return kept;
+}
+
 export const threadIn = (chat: ChatState, activityId: string) =>
-  chat.threads[activityId] ?? seedThread(activityId).messages;
+  chat.threads[activityId] ?? seedAfterClear(chat, activityId);
 
 export function unreadCountIn(chat: ChatState, activityId: string) {
   const readAt =

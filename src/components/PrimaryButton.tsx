@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ms } from 'react-native-size-matters';
 
+import LogoLoader from '@/components/LogoLoader';
 import { fonts, useTheme, type AppColors } from '@/theme';
 
 interface PrimaryButtonProps {
@@ -51,7 +51,7 @@ export default function PrimaryButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={colors.white} />
+        <LogoLoader color={colors.white} />
       ) : (
         <>
           {leadingIcon ? (

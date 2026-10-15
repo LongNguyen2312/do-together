@@ -42,9 +42,10 @@ import {
   stopMusic,
 } from '@/services/music';
 import { firstUnseenIndex, storyDurationMs } from '@/services/stories';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   deleteStory,
+  togglePinStory,
   markStorySeen,
   replyToStory,
 } from '@/store/slices/storySlice';
@@ -55,6 +56,7 @@ import type { Story } from '@/types/story';
 
 import CubeSide from './CubeSide';
 import ReactionBurst, { type Burst } from './ReactionBurst';
+import PinBar from './PinBar';
 import ReplyBar from './ReplyBar';
 import StoryFace from './StoryFace';
 import { usePullToClose } from './usePullToClose';
@@ -84,7 +86,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'StoryViewer'>;
 
 /** Full-screen stories, one person after another, like the usual story apps. */
 export default function StoryViewerScreen({ navigation, route }: Props) {
-  const { userIds: requested, startIndex } = route.params;
+  const {
+    userIds: requested,
+    startIndex,
+    pinned: showPinned,
+    storyIndex: startStory,
+  } = route.params;
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -92,7 +99,10 @@ export default function StoryViewerScreen({ navigation, route }: Props) {
   const { width } = useWindowDimensions();
   const dispatch = useAppDispatch();
   const confirm = useConfirm();
-  const { mine, friends, seenIds } = useStories();
+  const { mine: live, pinned, friends, seenIds } = useStories();
+  const pinnedIds = useAppSelector(state => state.story.pinnedIds);
+  // From the profile's pinned ones: those, kept past their day.
+  const mine = showPinned ? pinned : live;
 
   const storiesOf = (userId: string) =>
     userId === ME
@@ -113,8 +123,9 @@ export default function StoryViewerScreen({ navigation, route }: Props) {
   );
 
   const [userIndex, setUserIndex] = useState(startIndex);
-  const [storyIndex, setStoryIndex] = useState(() =>
-    firstUnseenIndex(storiesOf(userIds[startIndex]), seenIds),
+  const [storyIndex, setStoryIndex] = useState(
+    () =>
+      startStory ?? firstUnseenIndex(storiesOf(userIds[startIndex]), seenIds),
   );
 
   const userId = userIds[userIndex];
@@ -481,6 +492,15 @@ export default function StoryViewerScreen({ navigation, route }: Props) {
     }
   };
 
+  const isPinned = !!story && pinnedIds.includes(story.id);
+  const togglePin = () => {
+    if (!story) {
+      return;
+    }
+    dispatch(togglePinStory(story.id));
+    showToast(isPinned ? t('stories.unpinned') : t('stories.pinned'));
+  };
+
   const askDelete = () => {
     if (!story) {
       return;
@@ -516,8 +536,23 @@ export default function StoryViewerScreen({ navigation, route }: Props) {
     i => i >= 0 && i <= last && storiesOf(userIds[i]).length > 0,
   );
 
+  // Under the user's own stories, pinning to their profile; under a
+  // friend's, the message field.
   const replyBarFor = (personId: string, interactive: boolean) =>
-    personId === ME ? undefined : (
+    personId === ME ? (
+      <PinBar
+        pinned={
+          interactive
+            ? isPinned
+            : pinnedIds.includes(
+                storiesOf(ME)[entryIndex(userIds.indexOf(ME))]?.id,
+              )
+        }
+        onPress={interactive ? togglePin : undefined}
+        bottomInset={insets.bottom}
+        styles={styles}
+      />
+    ) : (
       <ReplyBar
         name={getUser(personId)?.name ?? ''}
         styles={styles}

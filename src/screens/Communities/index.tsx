@@ -8,8 +8,8 @@ import { usePagedList } from '@/hooks/usePagedList';
 import { CommunityRow } from '@/screens/Discover/cards';
 import { createStyles as createCardStyles } from '@/screens/Discover/styles';
 import { fetchCommunities } from '@/services/discover';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { toggleCommunity } from '@/store/slices/activitySlice';
+import { useAppSelector } from '@/store/hooks';
+import { useCommunityActions } from '@/hooks/useCommunity';
 import { useTheme } from '@/theme';
 import type { Community } from '@/types/activity';
 import type { RootStackParamList } from '@/types/navigation';
@@ -21,7 +21,6 @@ export default function CommunitiesScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const cardStyles = useMemo(() => createCardStyles(colors), [colors]);
-  const dispatch = useAppDispatch();
   const joinedIds = useAppSelector(state => state.activity.joinedCommunityIds);
 
   const list = usePagedList(
@@ -31,17 +30,16 @@ export default function CommunitiesScreen({ navigation, route }: Props) {
     ),
   );
 
-  const toggle = useCallback(
-    (communityId: string) => dispatch(toggleCommunity(communityId)),
-    [dispatch],
-  );
+  const community = useCommunityActions();
 
   const renderItem = ({ item }: { item: Community }) => (
     <CommunityRow
       community={item}
       joined={joinedIds.includes(item.id)}
       styles={cardStyles}
-      onToggle={toggle}
+      onJoin={community.join}
+      onOpenChat={community.openChat}
+      onOpen={community.openDetail}
     />
   );
 

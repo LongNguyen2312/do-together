@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   DarkTheme,
   DefaultTheme,
@@ -11,7 +11,12 @@ import MainTabNavigator from '@/navigators/MainTabNavigator';
 import ActivitiesScreen from '@/screens/Activities';
 import ActivityDetailScreen from '@/screens/ActivityDetail';
 import CommunitiesScreen from '@/screens/Communities';
+import EditProfileScreen from '@/screens/EditProfile';
+import CommunityDetailScreen from '@/screens/CommunityDetail';
 import ForgotPasswordScreen from '@/screens/ForgotPassword';
+import FriendsInCommonScreen from '@/screens/FriendsInCommon';
+import PeopleScreen from '@/screens/People';
+import UserProfileScreen from '@/screens/UserProfile';
 import FreeNearbyListScreen from '@/screens/FreeNearbyList';
 import FreeNearbyMapScreen from '@/screens/FreeNearbyMap';
 import GroupChatScreen from '@/screens/GroupChat';
@@ -24,12 +29,15 @@ import LoginScreen from '@/screens/Login';
 import NotificationSettingsScreen from '@/screens/NotificationSettings';
 import NotificationsScreen from '@/screens/Notifications';
 import OnboardingScreen from '@/screens/Onboarding';
+import SettingsScreen from '@/screens/Settings';
 import SignUpScreen from '@/screens/SignUp';
 import StoryCameraScreen from '@/screens/StoryCamera';
 import StoryEditorScreen from '@/screens/StoryEditor';
 import MediaGalleryScreen from '@/screens/MediaGallery';
 import StoryViewerScreen from '@/screens/StoryViewer';
-import { useAppSelector } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setUser } from '@/store/slices/authSlice';
+import { SKIP_TO_MAIN } from '@/utils/constants';
 import { useTheme } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 
@@ -40,8 +48,19 @@ const StoryViewerModal = withModalRoots(StoryViewerScreen);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// TODO: temporary — skips onboarding and auth so the app opens on Home.
-const SKIP_TO_MAIN = true;
+const EDGE_EFFECTS_HIDDEN = {
+  top: 'hidden',
+  bottom: 'hidden',
+  left: 'hidden',
+  right: 'hidden',
+} as const;
+
+/** Who's signed in while skipping: without anyone, the profile can't be edited. */
+const SKIP_USER = {
+  id: 'dev@dotogether.app',
+  email: 'dev@dotogether.app',
+  displayName: 'DoTogether',
+};
 
 export default function RootNavigator() {
   const { colors, isDark } = useTheme();
@@ -49,6 +68,14 @@ export default function RootNavigator() {
     state => state.app.hasCompletedOnboarding,
   );
   const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+  const hasUser = useAppSelector(state => !!state.auth.user);
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (SKIP_TO_MAIN && !hasUser) {
+      dispatch(setUser({ ...SKIP_USER, joinedAt: Date.now() }));
+    }
+  }, [hasUser, dispatch]);
 
   const navigationTheme = useMemo(() => {
     const base = isDark ? DarkTheme : DefaultTheme;
@@ -80,6 +107,12 @@ export default function RootNavigator() {
       <Stack.Screen name="HotActivities" component={HotActivitiesScreen} />
       <Stack.Screen name="Communities" component={CommunitiesScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="FriendsInCommon" component={FriendsInCommonScreen} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+      <Stack.Screen name="People" component={PeopleScreen} />
+      <Stack.Screen name="CommunityDetail" component={CommunityDetailScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen
         name="NotificationSettings"
         component={NotificationSettingsScreen}
@@ -139,6 +172,11 @@ export default function RootNavigator() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
+          // iOS 26 darkens and blurs the top of scrolling content under the
+          // status bar (and the bottom over home), ending in a visible line
+          // across covers and headers. Every screen draws its own header
+          // and tab bar, so none of it is wanted.
+          scrollEdgeEffects: EDGE_EFFECTS_HIDDEN,
         }}
       >
         {SKIP_TO_MAIN ? (

@@ -26,3 +26,8 @@ export function isValidPassword(value: string): boolean {
 
 /** Dev only: reset onboarding and sign out on every launch. */
 export const FORCE_ONBOARDING = __DEV__ && true;
+
+// TODO: temporary — skips onboarding and auth so the app opens on Home.
+// FORCE_ONBOARDING is then left alone: it would only sign out the stand-in
+// user and lose their profile on every launch.
+export const SKIP_TO_MAIN = true;

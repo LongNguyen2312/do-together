@@ -328,6 +328,12 @@ export function createStyles(colors: AppColors) {
       gap: ms(10),
       padding: ms(14),
     },
+    cardPhoto: {
+      width: '100%',
+      height: ms(132),
+      borderRadius: ms(12),
+      backgroundColor: colors.surfaceHigh,
+    },
     featuredCard: {
       ...card,
     },
@@ -566,6 +572,22 @@ export function createStyles(colors: AppColors) {
       fontSize: fs(12.5),
       fontFamily: fonts.semibold,
       color: colors.text,
+    },
+    // Joined a community: its group chat, a tap away.
+    openChatButton: {
+      flexShrink: 0,
+      height: ms(32),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(5),
+      paddingHorizontal: ms(12),
+      borderRadius: ms(10),
+      backgroundColor: colors.primarySoft,
+    },
+    openChatText: {
+      fontSize: fs(12.5),
+      fontFamily: fonts.semibold,
+      color: colors.primaryDark,
     },
     joinedButton: {
       flexShrink: 0,

@@ -13,6 +13,10 @@ interface ActivityState {
   followedUserIds: string[];
   /** People the user has sent a friend request to. */
   friendRequestIds: string[];
+  /** Friends (from the mock list) the user has since unfriended. */
+  unfriendedIds: string[];
+  /** Activities the user has saved, oldest first. */
+  savedIds: string[];
 }
 
 const initialState: ActivityState = {
@@ -36,6 +40,8 @@ const initialState: ActivityState = {
   activityInvites: {},
   followedUserIds: [],
   friendRequestIds: [],
+  unfriendedIds: [],
+  savedIds: [],
 };
 
 const activitySlice = createSlice({
@@ -61,6 +67,16 @@ const activitySlice = createSlice({
         state.checkedInIds.push(action.payload);
       }
     },
+    joinCommunity: (state, action: PayloadAction<string>) => {
+      if (!state.joinedCommunityIds.includes(action.payload)) {
+        state.joinedCommunityIds.push(action.payload);
+      }
+    },
+    leaveCommunity: (state, action: PayloadAction<string>) => {
+      state.joinedCommunityIds = state.joinedCommunityIds.filter(
+        id => id !== action.payload,
+      );
+    },
     toggleCommunity: (state, action: PayloadAction<string>) => {
       const ids = state.joinedCommunityIds;
       state.joinedCommunityIds = ids.includes(action.payload)
@@ -82,6 +98,12 @@ const activitySlice = createSlice({
         ? ids.filter(id => id !== userId)
         : [...ids, userId];
     },
+    toggleSave: (state, action: PayloadAction<string>) => {
+      const ids = state.savedIds;
+      state.savedIds = ids.includes(action.payload)
+        ? ids.filter(id => id !== action.payload)
+        : [...ids, action.payload];
+    },
     toggleFollow: (state, action: PayloadAction<string>) => {
       const ids = state.followedUserIds;
       state.followedUserIds = ids.includes(action.payload)
@@ -89,6 +111,14 @@ const activitySlice = createSlice({
         : [...ids, action.payload];
     },
     cancelFriendRequest: (state, action: PayloadAction<string>) => {
+      state.friendRequestIds = state.friendRequestIds.filter(
+        id => id !== action.payload,
+      );
+    },
+    unfriend: (state, action: PayloadAction<string>) => {
+      if (!state.unfriendedIds.includes(action.payload)) {
+        state.unfriendedIds.push(action.payload);
+      }
       state.friendRequestIds = state.friendRequestIds.filter(
         id => id !== action.payload,
       );
@@ -106,10 +136,14 @@ export const {
   leaveActivity,
   checkIn,
   toggleCommunity,
+  joinCommunity,
+  leaveCommunity,
   inviteUser,
   toggleActivityInvite,
   toggleFollow,
+  toggleSave,
   sendFriendRequest,
   cancelFriendRequest,
+  unfriend,
 } = activitySlice.actions;
 export default activitySlice.reducer;

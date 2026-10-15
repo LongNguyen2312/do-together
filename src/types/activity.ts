@@ -1,3 +1,4 @@
+import type { CustomActivity } from '@/types/broadcast';
 import type { ImageSourcePropType } from 'react-native';
 import type { LngLat } from '@maplibre/maplibre-react-native';
 
@@ -16,6 +17,13 @@ export interface User {
   freeInMinutes: number | null;
   /** Short personal detail, e.g. their usual pace. */
   note: string;
+  /** A few words about themselves, on their profile; none hides it. */
+  bio?: string;
+  /** Interests of their own, beyond the app's kinds (see CustomActivity). */
+  customInterests?: CustomActivity[];
+  /** Province ids (see places): where they're from, where they live now. */
+  hometown?: string;
+  currentCity?: string;
   trust: number;
   activitiesCount: number;
   interests: ActivityCategory[];
@@ -47,6 +55,11 @@ export type SlotStatus = 'available' | 'full';
 
 export interface Activity {
   id: string;
+  /**
+   * Set on a community's group chat, which is shaped like an activity so
+   * the chat screens work the same; never listed as an activity.
+   */
+  communityId?: string;
   category: ActivityCategory;
   title: string;
   /** Short label shown on the map marker. */
@@ -72,6 +85,11 @@ export interface Activity {
   extraTile: ActivityInfoTile;
   /** Photo for the featured card on Discover. */
   cover?: ImageSourcePropType;
+  /**
+   * The photo the host posted with it, at most one: its thumbnail on the
+   * cards wherever it's listed. Without one, cards show it as before.
+   */
+  photo?: ImageSourcePropType;
 }
 
 export interface Community {
@@ -83,4 +101,8 @@ export interface Community {
   tone: 'primary' | 'neutral' | 'success';
   membersCount: number;
   schedule: string;
+  /** What it's about and who it's for, on its page. */
+  description?: string;
+  /** Where it usually meets. */
+  meetingPlace?: string;
 }

@@ -4,7 +4,6 @@ import { ms } from 'react-native-size-matters';
 import { fonts, fs, type AppColors } from '@/theme';
 
 const SCREEN_PADDING = ms(16);
-const BUTTON = ms(40);
 const GROUP_AVATAR = ms(96);
 const MEMBER_AVATAR = ms(38);
 
@@ -34,29 +33,13 @@ export function createStyles(colors: AppColors) {
     pressed: {
       opacity: 0.7,
     },
-    topBar: {
-      height: ms(52),
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: SCREEN_PADDING,
-    },
-    topBarTitled: {
-      gap: ms(12),
-    },
     memberList: {
       paddingHorizontal: SCREEN_PADDING,
       paddingBottom: ms(32),
     },
-    roundButton: {
-      width: BUTTON,
-      height: BUTTON,
-      borderRadius: BUTTON / 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.surfaceMuted,
-    },
     scroll: {
       paddingHorizontal: SCREEN_PADDING,
+      paddingTop: ms(16),
       paddingBottom: ms(32),
       gap: ms(12),
     },

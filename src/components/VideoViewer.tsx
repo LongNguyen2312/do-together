@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   StatusBar,
@@ -31,6 +30,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import Video, { type VideoRef } from 'react-native-video';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import LogoLoader from '@/components/LogoLoader';
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
 import type { ChatVideo } from '@/types/chat';
@@ -349,7 +349,7 @@ export default function VideoViewer({ video, onClose }: Props) {
             {/* With a poster there's already something to see. */}
             {loading && !video?.posterUri ? (
               <View style={[styles.center, videoArea]} pointerEvents="none">
-                <ActivityIndicator size="large" color={colors.white} />
+                <LogoLoader size="large" color={colors.white} />
               </View>
             ) : null}
           </Animated.View>

@@ -1,6 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Video, { ViewType, type VideoRef } from 'react-native-video';
 
+import LogoLoader from '@/components/LogoLoader';
 import { fonts, fs, useTheme } from '@/theme';
 import type {
   StoryFilterId,
@@ -225,7 +225,7 @@ function StoryMedia({
     </View>
   ) : slow ? (
     <View style={styles.status}>
-      <ActivityIndicator size="large" color={colors.white} />
+      <LogoLoader size="large" color={colors.white} />
     </View>
   ) : null;
 

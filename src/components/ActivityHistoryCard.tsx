@@ -34,35 +34,49 @@ export default memo(function ActivityHistoryCard({
       accessibilityRole="button"
       accessibilityLabel={activity.title}
     >
-      <View style={styles.icon}>
-        <Text style={styles.emoji}>{CATEGORY_EMOJI[activity.category]}</Text>
-      </View>
-      <View style={styles.body}>
-        <Text style={styles.title} numberOfLines={1}>
-          {activity.title}
-        </Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          {`${dateTimeIn(activity.startsInMinutes)} • ${activity.meetingPoint}`}
-        </Text>
-        <View style={styles.bottom}>
-          <View style={styles.avatars}>
-            {activity.members.slice(0, MAX_AVATARS).map((member, i) => (
-              <Image
-                key={member.userId}
-                source={getUser(member.userId).avatar}
-                style={[styles.avatar, i > 0 && styles.avatarOverlap]}
-              />
-            ))}
-          </View>
-          <Text style={styles.meta}>
-            {t('activityDetail.people', { count: people })}
+      <View style={styles.top}>
+        <View style={styles.icon}>
+          <Text style={styles.emoji}>{CATEGORY_EMOJI[activity.category]}</Text>
+        </View>
+        <View style={styles.body}>
+          <Text style={styles.title} numberOfLines={1}>
+            {activity.title}
           </Text>
-          <View style={styles.endedPill}>
-            <Text style={styles.endedText}>{t('history.ended')}</Text>
-          </View>
+          <Text style={styles.meta} numberOfLines={1}>
+            {`${dateTimeIn(activity.startsInMinutes)} • ${
+              activity.meetingPoint
+            }`}
+          </Text>
+        </View>
+        <Icon
+          name="chevron-forward"
+          size={ms(16)}
+          color={colors.textSecondary}
+        />
+      </View>
+
+      {/* The photo the host posted, if any: under what it's about. */}
+      {activity.photo ? (
+        <Image source={activity.photo} style={styles.photo} />
+      ) : null}
+
+      <View style={styles.bottom}>
+        <View style={styles.avatars}>
+          {activity.members.slice(0, MAX_AVATARS).map((member, i) => (
+            <Image
+              key={member.userId}
+              source={getUser(member.userId).avatar}
+              style={[styles.avatar, i > 0 && styles.avatarOverlap]}
+            />
+          ))}
+        </View>
+        <Text style={styles.meta}>
+          {t('activityDetail.people', { count: people })}
+        </Text>
+        <View style={styles.endedPill}>
+          <Text style={styles.endedText}>{t('history.ended')}</Text>
         </View>
       </View>
-      <Icon name="chevron-forward" size={ms(16)} color={colors.textSecondary} />
     </Pressable>
   );
 });
@@ -70,9 +84,7 @@ export default memo(function ActivityHistoryCard({
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     card: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(12),
+      gap: ms(10),
       padding: ms(14),
       borderRadius: ms(16),
       backgroundColor: colors.card,
@@ -84,6 +96,17 @@ function createStyles(colors: AppColors) {
     },
     pressed: {
       opacity: 0.85,
+    },
+    top: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(12),
+    },
+    photo: {
+      width: '100%',
+      height: ms(140),
+      borderRadius: ms(12),
+      backgroundColor: colors.surfaceHigh,
     },
     icon: {
       width: ICON_SIZE,
@@ -117,7 +140,6 @@ function createStyles(colors: AppColors) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: ms(8),
-      marginTop: ms(2),
     },
     avatars: {
       flexDirection: 'row',

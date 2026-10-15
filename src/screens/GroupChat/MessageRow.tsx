@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -16,6 +15,7 @@ import {
   View,
   type StyleProp,
   type ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
@@ -39,6 +39,7 @@ import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import LogoLoader from '@/components/LogoLoader';
 import { useVoicePlayback } from '@/hooks/useVoicePlayback';
 import { toggleVoice, WAVEFORM_BARS } from '@/services/audio';
 import { splitMentions } from '@/services/chat';
@@ -71,6 +72,10 @@ const LONG_PRESS_MS = 350;
 const SWIPE_SLOP = ms(14);
 /** Swiped this far (and no further), letting go replies. */
 const REPLY_AT = ms(64);
+/** A long message only goes as far as the room beside it, but at least this. */
+const MIN_SWIPE = ms(28);
+/** The chat's edge, in from the screen's: a swiped message stops there. */
+const CHAT_EDGE = ms(12);
 /** Jumped to from a reply, a message shakes once the list's scrolled there. */
 const SHAKE_DELAY_MS = 300;
 /** Each swing of the shake, side to side, smaller each time. */
@@ -218,21 +223,39 @@ function MessageRow({
   // Swiped away from its side: others' to the right, the user's to the left.
   const away = mine ? -1 : 1;
   const swipeX = useSharedValue(0);
+  // How far it can go and stay in the chat: the room between the message
+  // and the chat's edge on the side it moves to (a long one has little), up
+  // to REPLY_AT. Measured on screen, as it's laid out.
+  const { width: screenWidth } = useWindowDimensions();
+  const room = useSharedValue(REPLY_AT);
+  const measureRoom = () =>
+    contentRef.current?.measureInWindow((x, _y, width) => {
+      room.value = mine ? x - CHAT_EDGE : screenWidth - CHAT_EDGE - x - width;
+    });
+  const swipeLimit = () => {
+    'worklet';
+    return Math.max(Math.min(REPLY_AT, room.value), MIN_SWIPE);
+  };
   const swipe = usePanGesture({
     enabled: interactive,
     activeOffsetX: mine ? [-SWIPE_SLOP, 9999] : [-9999, SWIPE_SLOP],
     failOffsetY: [-SWIPE_SLOP, SWIPE_SLOP],
     onUpdate: event => {
       'worklet';
-      // Only so far: at the reply point it stops.
+      // Only so far: at the reply point, or the chat's edge, it stops.
       swipeX.value =
-        away * Math.min(Math.max(event.translationX * away, 0), REPLY_AT);
+        away * Math.min(Math.max(event.translationX * away, 0), swipeLimit());
     },
     onDeactivate: () => {
       'worklet';
-      if (Math.abs(swipeX.value) >= REPLY_AT) {
+      if (Math.abs(swipeX.value) >= swipeLimit() - 0.5) {
         scheduleOnRN(reply);
       }
+    },
+    // However it ends, done or cut off (e.g. by the list scrolling), the
+    // message goes back to its place.
+    onFinalize: () => {
+      'worklet';
       swipeX.value = withSpring(0, SNAP_BACK);
     },
   });
@@ -271,7 +294,7 @@ function MessageRow({
   }));
   // The reply arrow shows behind the message as it's swiped off.
   const replyIconStyle = useAnimatedStyle(() => {
-    const pulled = Math.min(Math.abs(swipeX.value) / REPLY_AT, 1);
+    const pulled = Math.min(Math.abs(swipeX.value) / swipeLimit(), 1);
     return {
       opacity: pulled,
       transform: [{ scale: interpolate(pulled, [0, 1], [0.5, 1]) }],
@@ -306,6 +329,7 @@ function MessageRow({
         <GestureDetector gesture={gesture}>
           <Animated.View
             ref={contentRef}
+            onLayout={measureRoom}
             style={[styles.content, mine && styles.contentMine, shakeStyle]}
             accessibilityHint={
               interactive ? t('chat.longPressHint') : undefined
@@ -710,7 +734,7 @@ function Sending({
 
 function SendingSpinner() {
   const { colors } = useTheme();
-  return <ActivityIndicator size="large" color={colors.white} />;
+  return <LogoLoader size="large" color={colors.white} />;
 }
 
 /** Taller or wider than this, a lone photo's or a clip's tile is cropped. */

@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Linking,
   Modal,
   Pressable,
   StyleSheet,
   Text,
+  View,
   useWindowDimensions,
   type ViewStyle,
 } from 'react-native';
@@ -17,6 +17,10 @@ import {
 } from 'react-native-gesture-handler';
 import Animated, {
   Extrapolation,
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  SlideOutDown,
   interpolate,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -27,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+import LogoLoader from '@/components/LogoLoader';
 import ZoomablePhoto from '@/components/ZoomablePhoto';
 import { useSwipeToDismiss } from '@/hooks/useSwipeToDismiss';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
@@ -43,13 +48,23 @@ interface Props {
   /** Photo to open on; null keeps the viewer closed. */
   startIndex: number | null;
   onClose: () => void;
+  /** Just the photo, e.g. a profile photo: no long-press menu to save it. */
+  bare?: boolean;
 }
 
 /**
- * Full-screen photo pager with a download button: pinch or double-tap to
- * zoom, drag up or down to close.
+ * Full-screen photo pager: pinch or double-tap to zoom, drag up or down to
+ * close, hold a photo for a menu to save it.
  */
-export default function PhotoViewer({ photos, startIndex, onClose }: Props) {
+export default function PhotoViewer({
+  photos,
+  startIndex,
+  onClose,
+  bare = false,
+}: Props) {
+  /** The long-press menu, with saving the photo showing. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const openMenu = useCallback(() => setMenuOpen(true), []);
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -147,6 +162,7 @@ export default function PhotoViewer({ photos, startIndex, onClose }: Props) {
                   width={width}
                   height={height}
                   onZoomChange={setZoomed}
+                  onLongPress={bare ? undefined : openMenu}
                 />
               )}
               scrollEnabled={!zoomed}
@@ -178,31 +194,6 @@ export default function PhotoViewer({ photos, startIndex, onClose }: Props) {
           >
             <Icon name="close" size={ms(22)} color={colors.white} />
           </Pressable>
-          <Text style={styles.counter}>
-            {t('photoViewer.counter', {
-              current: current + 1,
-              total: photos.length,
-            })}
-          </Text>
-          <Pressable
-            onPress={download}
-            disabled={saving}
-            hitSlop={6}
-            style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel={t('photoViewer.download')}
-            accessibilityState={{ busy: saving }}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.white} />
-            ) : (
-              <Icon
-                name="download-outline"
-                size={ms(20)}
-                color={colors.white}
-              />
-            )}
-          </Pressable>
         </Animated.View>
 
         {photos.length > 1 && photos.length <= MAX_DOTS ? (
@@ -224,6 +215,52 @@ export default function PhotoViewer({ photos, startIndex, onClose }: Props) {
               />
             ))}
           </Animated.View>
+        ) : null}
+
+        {/* Held down: what can be done with the photo showing. */}
+        {menuOpen ? (
+          <Animated.View
+            entering={FadeIn.duration(160)}
+            exiting={FadeOut.duration(160)}
+            style={StyleSheet.absoluteFill}
+          >
+            <Pressable
+              style={styles.menuBackdrop}
+              onPress={() => setMenuOpen(false)}
+              accessibilityLabel={t('common.cancel')}
+            />
+            <Animated.View
+              entering={SlideInDown.duration(220)}
+              exiting={SlideOutDown.duration(180)}
+              style={[styles.menu, { paddingBottom: insets.bottom + ms(16) }]}
+            >
+              <View style={styles.menuHandle} />
+              <Pressable
+                onPress={() => {
+                  setMenuOpen(false);
+                  download();
+                }}
+                style={({ pressed }) => [
+                  styles.menuRow,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+              >
+                <Icon
+                  name="download-outline"
+                  size={ms(22)}
+                  color={colors.text}
+                />
+                <Text style={styles.menuText}>{t('photoViewer.download')}</Text>
+              </Pressable>
+            </Animated.View>
+          </Animated.View>
+        ) : null}
+
+        {saving ? (
+          <View style={styles.savingBadge} pointerEvents="none">
+            <LogoLoader color={colors.white} />
+          </View>
         ) : null}
       </GestureHandlerRootView>
     </Modal>
@@ -261,10 +298,44 @@ function createStyles(colors: AppColors) {
     pressed: {
       opacity: 0.7,
     },
-    counter: {
-      fontSize: fs(14),
-      fontFamily: fonts.semibold,
-      color: colors.white,
+    // The long-press menu, from the bottom.
+    menuBackdrop: {
+      flex: 1,
+      backgroundColor: `${colors.black}66`,
+    },
+    menu: {
+      paddingHorizontal: ms(16),
+      paddingTop: ms(10),
+      borderTopLeftRadius: ms(24),
+      borderTopRightRadius: ms(24),
+      backgroundColor: colors.card,
+    },
+    menuHandle: {
+      alignSelf: 'center',
+      width: ms(38),
+      height: ms(4),
+      borderRadius: ms(2),
+      marginBottom: ms(6),
+      backgroundColor: colors.surfaceHigh,
+    },
+    menuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(14),
+      paddingVertical: ms(18),
+    },
+    menuText: {
+      fontSize: fs(15),
+      fontFamily: fonts.medium,
+      color: colors.text,
+    },
+    savingBadge: {
+      position: 'absolute',
+      alignSelf: 'center',
+      top: '50%',
+      padding: ms(14),
+      borderRadius: ms(16),
+      backgroundColor: `${colors.black}99`,
     },
     dots: {
       position: 'absolute',

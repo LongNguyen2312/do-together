@@ -32,6 +32,7 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   markRead,
+  rejoinChat,
   reportMessage,
   selectThread,
   sendChatMessage,
@@ -165,6 +166,11 @@ export default function GroupChatScreen({ navigation, route }: Props) {
   useEffect(() => {
     dispatch(markRead({ activityId: activity.id, at: Date.now() }));
   }, [thread, activity.id, dispatch]);
+
+  // Opened again after leaving (e.g. from the activity): back on the list.
+  useEffect(() => {
+    dispatch(rejoinChat(activity.id));
+  }, [activity.id, dispatch]);
 
   /** Under the field: room for the home indicator, kept with the keyboard up. */
   const composerBottom = Math.max(insets.bottom, ms(10));
@@ -347,18 +353,6 @@ export default function GroupChatScreen({ navigation, route }: Props) {
               {memberNames}
             </Text>
           </View>
-        </Pressable>
-        <Pressable
-          onPress={openInfo}
-          hitSlop={4}
-          style={({ pressed }) => [
-            styles.iconButton,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('chat.info.title')}
-        >
-          <Icon name="ellipsis-vertical" size={ms(19)} color={colors.text} />
         </Pressable>
       </View>
 

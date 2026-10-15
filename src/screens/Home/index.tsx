@@ -266,6 +266,11 @@ const ActivityCard = memo(function ActivityCardView({
         </Text>
       </View>
 
+      {/* The photo the host posted, if any: under what it's about. */}
+      {activity.photo ? (
+        <Image source={activity.photo} style={styles.cardPhoto} />
+      ) : null}
+
       <View style={styles.cardBottom}>
         <View style={styles.cardMeta}>
           <View style={styles.avatarStack}>

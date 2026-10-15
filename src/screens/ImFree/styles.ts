@@ -29,34 +29,6 @@ export function createStyles(colors: AppColors) {
       transform: [{ scale: 0.97 }],
     },
 
-    header: {
-      height: ms(56),
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: ms(8),
-    },
-    headerLeft: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-    },
-    iconButton: {
-      width: ms(40),
-      height: ms(40),
-      borderRadius: ms(20),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    headerTitle: {
-      flexShrink: 1,
-      fontSize: fs(17),
-      lineHeight: fs(22),
-      fontFamily: fonts.semibold,
-      letterSpacing: -0.3,
-      color: colors.text,
-    },
     scroll: {
       paddingHorizontal: SCREEN_PADDING,
       paddingTop: ms(8),
@@ -231,6 +203,95 @@ export function createStyles(colors: AppColors) {
     noteCounter: {
       marginTop: -ms(4),
       textAlign: 'right',
+    },
+
+    // One photo saying what it's about: added, or shown with change/remove.
+    photoAdd: {
+      height: ms(96),
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: ms(6),
+      borderRadius: ms(12),
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.primary,
+      backgroundColor: `${colors.primarySoft}66`,
+    },
+    photoAddText: {
+      fontSize: fs(12.5),
+      lineHeight: fs(16),
+      fontFamily: fonts.semibold,
+      color: colors.primary,
+    },
+    photoBox: {
+      borderRadius: ms(12),
+      overflow: 'hidden',
+    },
+    photo: {
+      width: '100%',
+      aspectRatio: 16 / 10,
+      backgroundColor: colors.surfaceHigh,
+    },
+    photoRemove: {
+      position: 'absolute',
+      top: ms(8),
+      right: ms(8),
+      width: ms(28),
+      height: ms(28),
+      borderRadius: ms(14),
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: `${colors.black}80`,
+    },
+    photoChange: {
+      position: 'absolute',
+      left: ms(8),
+      bottom: ms(8),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(5),
+      paddingHorizontal: ms(10),
+      paddingVertical: ms(6),
+      borderRadius: ms(999),
+      backgroundColor: `${colors.black}80`,
+    },
+    photoChangeText: {
+      fontSize: fs(12),
+      lineHeight: fs(15),
+      fontFamily: fonts.semibold,
+      color: colors.white,
+    },
+    // The signal as others will see it.
+    preview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(10),
+      padding: ms(10),
+      borderRadius: ms(12),
+      backgroundColor: colors.surface,
+    },
+    previewThumb: {
+      width: ms(44),
+      height: ms(44),
+      borderRadius: ms(10),
+    },
+    previewThumbArt: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primarySoft,
+    },
+    previewEmoji: {
+      fontSize: fs(20),
+    },
+    previewText: {
+      flex: 1,
+      gap: ms(2),
+    },
+    previewTitle: {
+      fontSize: fs(13.5),
+      lineHeight: fs(18),
+      fontFamily: fonts.semibold,
+      color: colors.text,
     },
 
     radiusBadge: {

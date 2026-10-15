@@ -1,18 +1,16 @@
 import { useCallback, useMemo } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
-import Icon from 'react-native-vector-icons/Ionicons';
 
 import ActivityHistoryCard from '@/components/ActivityHistoryCard';
+import ScreenHeader from '@/components/ScreenHeader';
 import { activityHistory } from '@/services/mockData';
 import { useAppSelector } from '@/store/hooks';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
-
-const BACK_SIZE = ms(38);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActivityHistory'>;
 
@@ -32,24 +30,8 @@ export default function ActivitiesScreen({ navigation }: Props) {
   );
 
   return (
-    <View style={styles.safe}>
-      <View style={[styles.header, { paddingTop: insets.top + ms(8) }]}>
-        <Pressable
-          onPress={navigation.goBack}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.backButton,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.back')}
-        >
-          <Icon name="chevron-back" size={ms(20)} color={colors.text} />
-        </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
-          {t('history.title')}
-        </Text>
-      </View>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
+      <ScreenHeader title={t('history.title')} onBack={navigation.goBack} />
       <FlatList
         data={history}
         keyExtractor={item => item.id}
@@ -81,36 +63,6 @@ function createStyles(colors: AppColors) {
     safe: {
       flex: 1,
       backgroundColor: colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(10),
-      paddingHorizontal: ms(16),
-      paddingBottom: ms(8),
-    },
-    backButton: {
-      width: BACK_SIZE,
-      height: BACK_SIZE,
-      borderRadius: BACK_SIZE / 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.card,
-      shadowColor: colors.black,
-      shadowOpacity: 0.08,
-      shadowRadius: ms(8),
-      shadowOffset: { width: 0, height: ms(2) },
-      elevation: 3,
-    },
-    pressed: {
-      opacity: 0.7,
-    },
-    title: {
-      flex: 1,
-      fontSize: fs(15.5),
-      lineHeight: fs(20),
-      fontFamily: fonts.bold,
-      color: colors.text,
     },
     list: {
       flexGrow: 1,

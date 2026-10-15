@@ -15,6 +15,9 @@ export const createStyles = (colors: AppColors) => {
   const surface = `${colors.white}1F`;
   const muted = `${colors.white}99`;
   return StyleSheet.create({
+    flex: {
+      flex: 1,
+    },
     root: {
       flex: 1,
       backgroundColor: colors.black,

@@ -5,16 +5,15 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  View,
   useWindowDimensions,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
-import Icon from 'react-native-vector-icons/Ionicons';
 
 import PhotoViewer from '@/components/PhotoViewer';
+import ScreenHeader from '@/components/ScreenHeader';
 import { photosIn } from '@/services/chat';
 import { useAppSelector } from '@/store/hooks';
 import { selectThread } from '@/store/slices/chatSlice';
@@ -23,7 +22,6 @@ import type { RootStackParamList } from '@/types/navigation';
 
 const COLUMNS = 3;
 const GAP = ms(3);
-const BUTTON = ms(40);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GroupMedia'>;
 
@@ -43,26 +41,11 @@ export default function GroupMediaScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={navigation.goBack}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.roundButton,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.back')}
-        >
-          <Icon name="chevron-back" size={ms(20)} color={colors.text} />
-        </Pressable>
-        <View style={styles.headerBody}>
-          <Text style={styles.title}>{t('chat.info.media')}</Text>
-          <Text style={styles.subtitle}>
-            {t('chat.info.photoCount', { count: photos.length })}
-          </Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={t('chat.info.media')}
+        titleAccessory={<Text style={styles.titleCount}>{photos.length}</Text>}
+        onBack={navigation.goBack}
+      />
 
       <FlatList
         data={photos}
@@ -106,34 +89,11 @@ function createStyles(colors: AppColors) {
     pressed: {
       opacity: 0.7,
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(12),
-      paddingHorizontal: ms(16),
-      paddingVertical: ms(8),
-    },
-    roundButton: {
-      width: BUTTON,
-      height: BUTTON,
-      borderRadius: BUTTON / 2,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.surfaceMuted,
-    },
-    headerBody: {
-      flex: 1,
-    },
-    title: {
-      fontSize: fs(16),
-      fontFamily: fonts.bold,
-      color: colors.text,
-    },
-    subtitle: {
-      marginTop: ms(1),
-      fontSize: fs(12),
-      fontFamily: fonts.regular,
-      color: colors.textSecondary,
+    // How many photos, by the title.
+    titleCount: {
+      fontSize: fs(13),
+      fontFamily: fonts.medium,
+      color: colors.textMuted,
     },
     grid: {
       paddingTop: ms(8),

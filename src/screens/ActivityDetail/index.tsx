@@ -47,6 +47,7 @@ import {
   checkIn,
   joinActivity,
   leaveActivity,
+  toggleSave,
 } from '@/store/slices/activitySlice';
 import { selectUnreadCount } from '@/store/slices/chatSlice';
 import { useTheme } from '@/theme';
@@ -158,7 +159,9 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
   const liveBounds = useLiveBounds(activity, liveMembers, myPosition);
   const [mapExpanded, setMapExpanded] = useState(false);
 
-  const [saved, setSaved] = useState(false);
+  const saved = useAppSelector(state =>
+    state.activity.savedIds.includes(activity.id),
+  );
   const [joining, setJoining] = useState(false);
 
   const joinedCount = activity.members.length + (joined ? 1 : 0);
@@ -271,7 +274,7 @@ export default function ActivityDetailScreen({ navigation, route }: Props) {
                 label={t(
                   saved ? 'activityDetail.saved' : 'activityDetail.save',
                 )}
-                onPress={() => setSaved(prev => !prev)}
+                onPress={() => dispatch(toggleSave(activity.id))}
                 color={saved ? colors.primary : colors.text}
               />
               <HeaderButton

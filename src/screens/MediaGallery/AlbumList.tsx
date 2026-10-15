@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Image, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+import LogoLoader from '@/components/LogoLoader';
 import { fetchGalleryAlbums, fetchGalleryPage } from '@/services/gallery';
 import { useTheme } from '@/theme';
 import type { GalleryAlbum } from '@/types/story';
@@ -63,7 +57,7 @@ export default function AlbumList({
   if (!rows) {
     return (
       <View style={styles.footer}>
-        <ActivityIndicator color={colors.white} />
+        <LogoLoader color={colors.white} />
       </View>
     );
   }

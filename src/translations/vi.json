@@ -295,7 +295,8 @@
     "members": "{{count}} thành viên",
     "joinGroup": "Gia nhập",
     "joinedGroup": "Đã gia nhập",
-    "empty": "Chưa có kết quả phù hợp với tìm kiếm của bạn."
+    "empty": "Chưa có kết quả phù hợp với tìm kiếm của bạn.",
+    "openGroupChat": "Mở nhóm chat"
   },
   "tabs": {
     "home": "Trang chủ",
@@ -308,7 +309,9 @@
     "filters": {
       "all": "Tất cả",
       "unread": "Chưa đọc",
-      "group": "Nhóm"
+      "personal": "Cá nhân",
+      "activity": "Nhóm hoạt động",
+      "community": "Nhóm cộng đồng"
     },
     "now": "Vừa xong",
     "minutesAgo_one": "{{count}} phút",
@@ -317,11 +320,17 @@
     "empty": "Tham gia một hoạt động để trò chuyện cùng nhóm.",
     "noMatch": "Không có cuộc trò chuyện nào phù hợp.",
     "delete": "Xóa",
-    "deleteTitle": "Xóa đoạn chat này?",
-    "deleteMessage": "Tin nhắn chỉ bị xóa ở phía bạn. Đoạn chat sẽ hiện lại khi có người nhắn tin mới.",
-    "deleteHint": "Vuốt sang trái để xóa"
+    "deleteTitle": "Xoá lịch sử trò chuyện?",
+    "deleteMessage": "Tin nhắn và lịch sử trò chuyện chỉ bị xoá ở phía bạn. Bạn vẫn ở trong nhóm và vẫn nhận tin nhắn mới.",
+    "deleteHint": "Vuốt sang trái để xoá lịch sử trò chuyện",
+    "noPersonal": "Tin nhắn cá nhân với bạn bè sẽ hiện ở đây."
   },
   "stories": {
+    "pinnedLabel": "Đã ghim lên trang cá nhân",
+    "pin": "Ghim lên trang cá nhân",
+    "unpin": "Bỏ ghim khỏi trang cá nhân",
+    "pinned": "Đã ghim lên trang cá nhân",
+    "unpinned": "Đã bỏ ghim khỏi trang cá nhân",
     "addTitle": "Thêm vào story của bạn",
     "add": "Thêm story",
     "yourStory": "Story của bạn",
@@ -414,7 +423,13 @@
       "notifications": "Thông báo tin nhắn",
       "notificationsOn": "Nhận thông báo khi có tin nhắn mới",
       "notificationsOff": "Đã tắt, tin mới vẫn được đếm",
-      "viewActivity": "Xem chi tiết hoạt động"
+      "viewActivity": "Xem chi tiết hoạt động",
+      "community": "Cộng đồng • {{count}} thành viên",
+      "leave": "Rời khỏi nhóm",
+      "leaveTitle": "Rời khỏi nhóm?",
+      "leaveCommunityMessage": "Bạn sẽ rời cộng đồng \"{{name}}\" và không nhận tin nhắn của nhóm nữa. Bạn có thể gia nhập lại bất cứ lúc nào.",
+      "leaveActivityMessage": "Nhóm chat sẽ không còn trong danh sách của bạn và bạn không nhận tin nhắn của nhóm nữa. Bạn vẫn tham gia hoạt động.",
+      "viewCommunity": "Xem chi tiết cộng đồng"
     },
     "endedNotice": "Hoạt động đã kết thúc. Bạn vẫn có thể xem lại tin nhắn.",
     "cameraUnavailable": "Thiết bị này không dùng được camera."
@@ -531,7 +546,17 @@
     "findBuddies": "Tìm bạn {{activity}} gần đây",
     "broadcasting": "Đang phát tín hiệu...",
     "broadcastTitle": "Đã phát tín hiệu!",
-    "broadcastMessage": "Chúng tôi sẽ báo ngay khi có người gần bạn muốn {{activity}} cùng."
+    "broadcastMessage": "Chúng tôi sẽ báo ngay khi có người gần bạn muốn {{activity}} cùng.",
+    "photo": {
+      "title": "Ảnh mô tả",
+      "limit": "Tối đa 1 ảnh",
+      "add": "Thêm ảnh",
+      "change": "Đổi ảnh",
+      "remove": "Xoá ảnh",
+      "errorTitle": "Không mở được ảnh",
+      "previewPhoto": "Ảnh này sẽ là ảnh đại diện cho tín hiệu",
+      "previewActivity": "Chưa có ảnh: dùng hình của hoạt động"
+    }
   },
   "storyCamera": {
     "photo": "Ảnh",
@@ -737,5 +762,147 @@
       },
       "chatNote": "Tin nhắn mới được bật hoặc tắt riêng cho từng nhóm, trong phần thông tin nhóm."
     }
+  },
+  "profile": {
+    "addBio": "Giới thiệu về bạn",
+    "pinned": {
+      "title": "Tên hiển thị dưới story",
+      "placeholder": "Không hiện chữ",
+      "hint": "Hãy nói về story của bạn",
+      "clear": "Xoá chữ"
+    },
+    "avatar": {
+      "viewStory": "Xem story",
+      "viewPhoto": "Xem ảnh đại diện",
+      "changePhoto": "Thay ảnh đại diện",
+      "withStory": "Ảnh đại diện, đang có story"
+    },
+    "age_one": "{{count}} tuổi",
+    "age_other": "{{count}} tuổi",
+    "relation": {
+      "friends": "Bạn bè",
+      "unfollow": "Bỏ theo dõi",
+      "friendOptions": "Mở lựa chọn: theo dõi, huỷ kết bạn",
+      "unfriend": "Huỷ kết bạn",
+      "unfriendTitle": "Huỷ kết bạn?",
+      "unfriendMessage": "Bạn và {{name}} sẽ không còn là bạn bè. Bạn có thể gửi lời mời kết bạn lại sau."
+    },
+    "common": {
+      "title": "Điểm chung:",
+      "interests": "cùng thích {{list}}",
+      "activities_one": "đã cùng tham gia {{count}} hoạt động",
+      "activities_other": "đã cùng tham gia {{count}} hoạt động"
+    },
+    "emptyOther": {
+      "joined": "{{name}} chưa có hoạt động nào đã kết thúc.",
+      "story": "{{name}} chưa có story nào đang hiển thị."
+    },
+    "people": {
+      "friends": "Bạn bè ({{count}})",
+      "followers": "Người theo dõi ({{count}})",
+      "friendBadge": "Bạn bè",
+      "emptyFriends": "Bạn chưa có người bạn nào.",
+      "emptyFollowers": "Chưa có ai theo dõi bạn."
+    },
+    "addStory": "Thêm vào story",
+    "editProfileButton": "Chỉnh sửa trang cá nhân",
+    "addInterests": "Thêm sở thích",
+    "friendsInCommon": "Bạn bè có điểm chung",
+    "inCommon": {
+      "title": "Bạn bè có điểm chung",
+      "count_one": "{{count}} người bạn cùng thích những điều bạn thích",
+      "count_other": "{{count}} người bạn cùng thích những điều bạn thích",
+      "shared_one": "{{count}} sở thích chung",
+      "shared_other": "{{count}} sở thích chung",
+      "empty": "Chưa có người bạn nào có cùng sở thích với bạn."
+    },
+    "editProfile": "Sửa hồ sơ",
+    "changePhoto": "Đổi ảnh đại diện",
+    "photoError": "Không mở được ảnh. Thử lại nhé.",
+    "now": "Đang diễn ra",
+    "settings": "Cài đặt",
+    "notifications": "Thông báo",
+    "notificationsPaused": "Đang tạm dừng",
+    "language": "Ngôn ngữ",
+    "darkMode": "Chế độ tối",
+    "logOut": "Đăng xuất",
+    "logOutTitle": "Đăng xuất khỏi DoTogether?",
+    "logOutMessage": "Bạn có thể đăng nhập lại bất cứ lúc nào.",
+    "edit": {
+      "title": "Sửa hồ sơ",
+      "changePhoto": "Đổi ảnh đại diện",
+      "name": "Tên hiển thị",
+      "namePlaceholder": "Tên của bạn",
+      "nameRequired": "Nhập tên để mọi người nhận ra bạn",
+      "bio": "Giới thiệu",
+      "bioPlaceholder": "Ví dụ: Sáng chạy quanh Hồ Tây, chiều mê cà phê muối",
+      "interests": "Sở thích",
+      "interestsHint": "Những gì bạn hay muốn rủ mọi người cùng làm.",
+      "discardTitle": "Bỏ các thay đổi?",
+      "discardMessage": "Những gì bạn vừa sửa sẽ không được lưu.",
+      "discard": "Bỏ thay đổi",
+      "keepEditing": "Sửa tiếp",
+      "otherInterest": "Sở thích khác",
+      "otherInterestPlaceholder": "Ví dụ: Leo núi",
+      "newInterestTitle": "Thêm sở thích của bạn",
+      "newInterestName": "Tên sở thích",
+      "newInterestSave": "Lưu sở thích",
+      "forgetInterest": "Xoá",
+      "forgetInterestTitle": "Xoá sở thích này?",
+      "forgetInterestMessage": "\"{{interest}}\" sẽ bị xoá khỏi danh sách sở thích của bạn.",
+      "forgetInterestHint": "Nhấn để chọn hoặc bỏ chọn, nhấn giữ để xoá"
+    },
+    "newStory": "Story mới",
+    "tabs": {
+      "joined": "Đã tham gia",
+      "saved": "Lưu trữ",
+      "story": "Story"
+    },
+    "empty": {
+      "joined": "Các hoạt động bạn tham gia sẽ hiện ở đây sau khi kết thúc.",
+      "saved": "Hoạt động bạn lưu sẽ hiện ở đây.",
+      "story": "Story bạn đăng sẽ hiện ở đây khi còn hiệu lực."
+    },
+    "friendCount_one": "{{count}} bạn bè",
+    "friendCount_other": "{{count}} bạn bè",
+    "followerCount_one": "{{count}} người theo dõi",
+    "followerCount_other": "{{count}} người theo dõi",
+    "activityCount_one": "{{count}} hoạt động",
+    "activityCount_other": "{{count}} hoạt động",
+    "places": {
+      "title": "Nơi chốn",
+      "currentCity": "Nơi ở hiện tại",
+      "hometown": "Quê quán",
+      "addCurrentCity": "Thêm nơi bạn đang sống",
+      "addHometown": "Thêm quê quán",
+      "livesIn": "Sống tại <b>{{place}}</b>",
+      "from": "Đến từ <b>{{place}}</b>",
+      "searchPlaceholder": "Tìm tỉnh, thành phố",
+      "noResults": "Không tìm thấy nơi nào.",
+      "clear": "Bỏ chọn",
+      "kind": {
+        "city": "Thành phố",
+        "province": "Tỉnh"
+      }
+    }
+  },
+  "community": {
+    "title": "Cộng đồng",
+    "join": "Gia nhập cộng đồng",
+    "joined": "Đã tham gia",
+    "leave": "Rời cộng đồng",
+    "leaveTitle": "Rời cộng đồng?",
+    "about": "Giới thiệu",
+    "schedule": "Lịch sinh hoạt",
+    "members": "Thành viên",
+    "seeAll": "Xem tất cả",
+    "upcoming": "Hoạt động sắp tới",
+    "noUpcoming": "Chưa có hoạt động nào sắp diễn ra.",
+    "liveNow": "Đang diễn ra",
+    "friendsHere": "{{names}} cũng ở đây",
+    "friendsHereMore_one": "{{names}} và {{count}} người bạn khác cũng ở đây",
+    "friendsHereMore_other": "{{names}} và {{count}} người bạn khác cũng ở đây",
+    "membersOnlyTitle": "Chỉ dành cho thành viên",
+    "membersOnlyMessage": "Gia nhập \"{{name}}\" để xem thành viên và các hoạt động sắp tới của cộng đồng."
   }
 }

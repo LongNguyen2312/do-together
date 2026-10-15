@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { Provider } from 'react-redux';
@@ -15,8 +15,9 @@ import SplashScreen, { SPLASH_BACKGROUND } from '@/screens/Splash';
 import { persistor, store } from '@/store';
 import { resetOnboarding } from '@/store/slices/appSlice';
 import { clearUser } from '@/store/slices/authSlice';
+import { loadProvinces } from '@/store/slices/placesSlice';
 import { ThemeProvider } from '@/theme';
-import { FORCE_ONBOARDING } from '@/utils/constants';
+import { FORCE_ONBOARDING, SKIP_TO_MAIN } from '@/utils/constants';
 import '@/translations';
 
 function AppShell() {
@@ -39,13 +40,18 @@ function BootGate() {
 
   const dismiss = bootstrapped && introDone;
 
+  // Things every screen may need, fetched quietly behind the splash.
+  useEffect(() => {
+    store.dispatch(loadProvinces());
+  }, []);
+
   return (
     <View style={styles.root}>
       <PersistGate
         loading={null}
         persistor={persistor}
         onBeforeLift={() => {
-          if (FORCE_ONBOARDING) {
+          if (FORCE_ONBOARDING && !SKIP_TO_MAIN) {
             store.dispatch(resetOnboarding());
             store.dispatch(clearUser());
           }

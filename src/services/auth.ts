@@ -15,6 +15,7 @@ export async function loginWithEmail(
     id: email,
     email,
     displayName: email.split('@')[0],
+    joinedAt: Date.now(),
   };
 }
 
@@ -28,6 +29,7 @@ export async function signUpWithEmail(
     id: email,
     email,
     displayName: fullName,
+    joinedAt: Date.now(),
   };
 }
 

@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ms } from 'react-native-size-matters';
-import Icon from 'react-native-vector-icons/Ionicons';
 
+import ScreenHeader from '@/components/ScreenHeader';
 import MemberRow, { groupMembers } from '@/screens/GroupChatInfo/MemberRow';
 import { createStyles } from '@/screens/GroupChatInfo/styles';
 import { ACTIVITIES, getActivity } from '@/services/mockData';
@@ -26,23 +25,10 @@ export default function GroupMembersScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={[styles.topBar, styles.topBarTitled]}>
-        <Pressable
-          onPress={navigation.goBack}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.roundButton,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.back')}
-        >
-          <Icon name="chevron-back" size={ms(20)} color={colors.text} />
-        </Pressable>
-        <Text style={styles.cardTitle}>
-          {t('chat.info.memberList', { count: members.length })}
-        </Text>
-      </View>
+      <ScreenHeader
+        title={t('chat.info.memberList', { count: members.length })}
+        onBack={navigation.goBack}
+      />
       <FlatList
         data={members}
         keyExtractor={member => member.id}

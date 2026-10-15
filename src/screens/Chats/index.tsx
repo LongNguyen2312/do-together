@@ -37,6 +37,7 @@ import { chatBackground } from '@/screens/GroupChat/styles';
 import {
   activityStatus,
   CATEGORY_EMOJI,
+  communityChatId,
   getActivity,
   getUser,
 } from '@/services/mockData';
@@ -54,17 +55,30 @@ import { clockIn, initialsOf, normalizeSearch } from '@/utils/format';
 
 import { createStyles, type ChatsStyles } from './styles';
 
-const BASE_FILTERS = ['all', 'unread', 'group'] as const;
+/** By state and by kind, then by kind of activity. */
+const BASE_FILTERS = [
+  'all',
+  'unread',
+  'personal',
+  'activity',
+  'community',
+] as const;
 type Filter = (typeof BASE_FILTERS)[number] | ActivityCategory;
 const CATEGORY_ORDER = Object.keys(CATEGORY_EMOJI) as ActivityCategory[];
-/** More than a host and one guest. */
-const GROUP_MIN_MEMBERS = 3;
 
 const MINUTE = 60 * 1000;
 
+/**
+ * What a chat is with: one person, an activity's group or a community's.
+ * No one-to-one chats yet, but they have their filter.
+ */
+type ChatKind = 'personal' | 'activity' | 'community';
+
 interface ChatSummary {
   activity: Activity;
-  status: ActivityStatus;
+  kind: ChatKind;
+  /** A community's group is always on, so no live dot. */
+  status: ActivityStatus | 'community';
   last?: ChatMessage;
   unread: number;
   muted: boolean;
@@ -85,6 +99,9 @@ export default function ChatsScreen({ navigation }: Props) {
   const confirm = useConfirm();
 
   const joinedIds = useAppSelector(state => state.activity.joinedIds);
+  const joinedCommunityIds = useAppSelector(
+    state => state.activity.joinedCommunityIds,
+  );
   const chat = useAppSelector(state => state.chat);
   const myName = useAppSelector(state => state.auth.user?.displayName);
   const [filter, setFilter] = useState<Filter>('all');
@@ -98,24 +115,31 @@ export default function ChatsScreen({ navigation }: Props) {
 
   const chats = useMemo<ChatSummary[]>(
     () =>
-      joinedIds
+      // Each joined activity's group, then each joined community's; not
+      // the ones left. Cleared ones stay, just without the old messages.
+      [...joinedIds, ...joinedCommunityIds.map(communityChatId)]
         .map(getActivity)
         .filter(
           (activity): activity is Activity =>
-            !!activity && !chat.deletedIds.includes(activity.id),
+            !!activity && !chat.leftIds.includes(activity.id),
         )
         .map(activity => {
           const messages = threadIn(chat, activity.id);
           return {
             activity,
-            status: activityStatus(activity),
+            kind: activity.communityId
+              ? ('community' as const)
+              : ('activity' as const),
+            status: activity.communityId
+              ? ('community' as const)
+              : activityStatus(activity),
             last: messages[messages.length - 1],
             unread: unreadCountIn(chat, activity.id),
             muted: chat.mutedIds.includes(activity.id),
           };
         })
         .sort((a, b) => (b.last?.sentAt ?? 0) - (a.last?.sentAt ?? 0)),
-    [joinedIds, chat],
+    [joinedIds, joinedCommunityIds, chat],
   );
 
   // Only categories the user actually has chats in.
@@ -129,14 +153,16 @@ export default function ChatsScreen({ navigation }: Props) {
   // Falls back when leaving the last chat of the picked category.
   const current = filters.includes(filter) ? filter : 'all';
 
-  const matchesFilter = ({ activity, unread }: ChatSummary) => {
+  const matchesFilter = ({ activity, unread, kind }: ChatSummary) => {
     switch (current) {
       case 'all':
         return true;
       case 'unread':
         return unread > 0;
-      case 'group':
-        return activity.members.length >= GROUP_MIN_MEMBERS;
+      case 'personal':
+      case 'activity':
+      case 'community':
+        return kind === current;
       default:
         return activity.category === current;
     }
@@ -199,7 +225,11 @@ export default function ChatsScreen({ navigation }: Props) {
         subtitle: activity.markerTitle,
       },
       confirmLabel: t('chats.delete'),
-      onConfirm: () => dispatch(deleteChat(activity.id)),
+      // The row stays (they're still in the group), closed, now empty.
+      onConfirm: () => {
+        dispatch(deleteChat(activity.id));
+        row?.close();
+      },
       onCancel: () => row?.close(),
     });
 
@@ -370,7 +400,13 @@ export default function ChatsScreen({ navigation }: Props) {
         ListHeaderComponent={header}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {t(chats.length ? 'chats.noMatch' : 'chats.empty')}
+            {t(
+              !chats.length
+                ? 'chats.empty'
+                : current === 'personal'
+                ? 'chats.noPersonal'
+                : 'chats.noMatch',
+            )}
           </Text>
         }
         contentContainerStyle={{ paddingBottom: tabBarInset + ms(16) }}
@@ -393,8 +429,10 @@ function ActivityArt({
   styles: ChatsStyles;
   imageStyle: StyleProp<ImageStyle>;
 }) {
-  return activity.cover ? (
-    <Image source={activity.cover} style={imageStyle} />
+  // The photo the host posted, else the cover, else its kind's emoji.
+  const photo = activity.photo ?? activity.cover;
+  return photo ? (
+    <Image source={photo} style={imageStyle} />
   ) : (
     <View style={[imageStyle, styles.artEmoji]}>
       <Text style={styles.artEmojiText}>

@@ -178,6 +178,38 @@ export function createStyles(colors: AppColors) {
     replyGridEmoji: {
       fontSize: fs(46),
     },
+    // Under the user's own story: pin it to their profile.
+    pinBar: {
+      position: 'absolute',
+      right: 0,
+      bottom: 0,
+      left: 0,
+      alignItems: 'flex-end',
+      paddingHorizontal: ms(12),
+    },
+    pinButton: {
+      height: ms(32),
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: ms(5),
+      paddingHorizontal: ms(12),
+      borderRadius: ms(16),
+      backgroundColor: `${colors.white}2E`,
+    },
+    pinButtonOn: {
+      backgroundColor: colors.white,
+    },
+    pinPressed: {
+      opacity: 0.7,
+    },
+    pinText: {
+      fontSize: fs(12.5),
+      fontFamily: fonts.semibold,
+      color: colors.white,
+    },
+    pinTextOn: {
+      color: colors.black,
+    },
     replyFooter: {
       gap: ms(12),
     },

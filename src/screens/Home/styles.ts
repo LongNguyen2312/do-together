@@ -340,16 +340,23 @@ export function createStyles(colors: AppColors) {
       color: colors.textSecondary,
     },
 
+    cardPhoto: {
+      width: '100%',
+      height: ms(140),
+      borderRadius: ms(12),
+      backgroundColor: colors.surfaceHigh,
+    },
+    // Lifted off the sheet by a soft shadow, so each stands out.
     card: {
       gap: ms(10),
       padding: ms(16),
       borderRadius: ms(16),
       backgroundColor: colors.card,
       shadowColor: colors.black,
-      shadowOpacity: 0.05,
-      shadowRadius: ms(4),
-      shadowOffset: { width: 0, height: ms(1) },
-      elevation: 1,
+      shadowOpacity: 0.1,
+      shadowRadius: ms(12),
+      shadowOffset: { width: 0, height: ms(4) },
+      elevation: 4,
     },
     cardPressed: {
       opacity: 0.92,

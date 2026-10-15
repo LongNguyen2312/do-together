@@ -1,6 +1,5 @@
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Image,
   Linking,
@@ -17,6 +16,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+import PullRefreshMark from '@/components/PullRefreshMark';
+import { usePullRefresh } from '@/hooks/usePullRefresh';
+import LogoLoader from '@/components/LogoLoader';
 import { MAX_CHAT_PHOTOS, MAX_CHAT_VIDEO_MS } from '@/services/chat';
 import { changeGallerySelection } from '@/services/gallery';
 import { MAX_VIDEO_MS } from '@/services/stories';
@@ -71,6 +73,7 @@ export default function MediaGalleryScreen({ navigation, route }: Props) {
   /** Null for the whole library. */
   const [album, setAlbum] = useState<GalleryAlbum | null>(null);
   const [choosingAlbum, setChoosingAlbum] = useState(false);
+  const pullRefresh = usePullRefresh();
   const { access, assets, refreshing, refresh, loadMore, allow } =
     useGallery(album);
   const readable = access === 'granted' || access === 'limited';
@@ -274,7 +277,7 @@ export default function MediaGalleryScreen({ navigation, route }: Props) {
       </View>
     ) : assets === null ? (
       <View style={styles.footer}>
-        <ActivityIndicator color={colors.white} />
+        <LogoLoader color={colors.white} />
       </View>
     ) : !assets.length ? (
       <View style={styles.footer}>
@@ -351,36 +354,46 @@ export default function MediaGalleryScreen({ navigation, route }: Props) {
           onPick={pickAlbum}
         />
       ) : (
-        <FlatList<Tile>
-          data={data}
-          extraData={chosen}
-          keyExtractor={item => (item === CAMERA ? CAMERA : item.uri)}
-          renderItem={renderItem}
-          numColumns={GRID_COLUMNS}
-          columnWrapperStyle={styles.row}
-          ListHeaderComponent={limitedNotice}
-          ListFooterComponent={footer}
-          contentContainerStyle={{
-            // Clear of the send bar, when there is one.
-            paddingBottom: insets.bottom + (chosen.length ? ms(72) : 0),
-          }}
-          onEndReached={loadMore}
-          onEndReachedThreshold={1.5}
-          refreshControl={
-            readable ? (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={refresh}
-                tintColor={colors.white}
-              />
-            ) : undefined
-          }
-          // Thumbnails are cheap, but there can be thousands: keep few mounted.
-          initialNumToRender={18}
-          maxToRenderPerBatch={18}
-          windowSize={7}
-          removeClippedSubviews
-        />
+        // The grid, with the pull-to-refresh mark over its top.
+        <View style={styles.flex}>
+          <FlatList<Tile>
+            data={data}
+            extraData={chosen}
+            keyExtractor={item => (item === CAMERA ? CAMERA : item.uri)}
+            renderItem={renderItem}
+            numColumns={GRID_COLUMNS}
+            columnWrapperStyle={styles.row}
+            ListHeaderComponent={limitedNotice}
+            ListFooterComponent={footer}
+            contentContainerStyle={{
+              // Clear of the send bar, when there is one.
+              paddingBottom: insets.bottom + (chosen.length ? ms(72) : 0),
+            }}
+            onEndReached={loadMore}
+            onEndReachedThreshold={1.5}
+            refreshControl={
+              readable ? (
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={refresh}
+                  tintColor={pullRefresh.refreshTint(colors.white)}
+                />
+              ) : undefined
+            }
+            onScroll={pullRefresh.onScroll}
+            scrollEventThrottle={pullRefresh.scrollEventThrottle}
+            // Thumbnails are cheap, but there can be thousands: keep few mounted.
+            initialNumToRender={18}
+            maxToRenderPerBatch={18}
+            windowSize={7}
+            removeClippedSubviews
+          />
+          <PullRefreshMark
+            scrollY={pullRefresh.scrollY}
+            refreshing={refreshing}
+            color={colors.white}
+          />
+        </View>
       )}
 
       {forChat && chosen.length && !choosingAlbum ? (
@@ -403,7 +416,7 @@ export default function MediaGalleryScreen({ navigation, route }: Props) {
 
       {busy ? (
         <View style={styles.busy}>
-          <ActivityIndicator size="large" color={colors.white} />
+          <LogoLoader size="large" color={colors.white} />
         </View>
       ) : null}
     </View>

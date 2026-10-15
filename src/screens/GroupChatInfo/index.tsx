@@ -6,17 +6,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+import { useConfirm } from '@/components/ConfirmDialog';
 import PhotoViewer from '@/components/PhotoViewer';
+import ScreenHeader from '@/components/ScreenHeader';
 import Toggle from '@/components/Toggle';
 import { photosIn } from '@/services/chat';
 import {
   ACTIVITIES,
   activityStatus,
   CATEGORY_EMOJI,
+  COMMUNITIES,
   getActivity,
 } from '@/services/mockData';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { selectThread, toggleMute } from '@/store/slices/chatSlice';
+import { leaveCommunity } from '@/store/slices/activitySlice';
+import { leaveChat, selectThread, toggleMute } from '@/store/slices/chatSlice';
 import { useTheme } from '@/theme';
 import type { ActivityStatus } from '@/types/activity';
 import type { ChatPhoto } from '@/types/chat';
@@ -36,6 +40,7 @@ export default function GroupChatInfoScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const dispatch = useAppDispatch();
+  const confirm = useConfirm();
 
   const activity = getActivity(route.params.activityId) ?? ACTIVITIES[0];
   const status = activityStatus(activity);
@@ -54,34 +59,47 @@ export default function GroupChatInfoScreen({ navigation, route }: Props) {
     ongoing: colors.success,
     completed: colors.textMuted,
   };
-  const statusText =
-    status === 'upcoming'
-      ? t('chat.info.upcoming', { time: clockIn(activity.startsInMinutes) })
-      : status === 'ongoing'
-      ? t('chat.info.ongoing', {
-          time: clockIn(activity.startsInMinutes + activity.durationMinutes),
-        })
-      : t('chat.info.completed');
+  // A community's group is always on: what it is and how big, instead.
+  const community = activity.communityId
+    ? COMMUNITIES.find(item => item.id === activity.communityId)
+    : undefined;
+  const statusText = community
+    ? t('chat.info.community', {
+        count: formatCount(community.membersCount),
+      })
+    : status === 'upcoming'
+    ? t('chat.info.upcoming', { time: clockIn(activity.startsInMinutes) })
+    : status === 'ongoing'
+    ? t('chat.info.ongoing', {
+        time: clockIn(activity.startsInMinutes + activity.durationMinutes),
+      })
+    : t('chat.info.completed');
+
+  // Leaving: off the Chats tab (and, for a community, out of it), once
+  // confirmed; back to where the chat was opened from.
+  const askLeave = () =>
+    confirm({
+      icon: 'log-out-outline',
+      title: t('chat.info.leaveTitle'),
+      message: community
+        ? t('chat.info.leaveCommunityMessage', { name: community.name })
+        : t('chat.info.leaveActivityMessage'),
+      confirmLabel: t('chat.info.leave'),
+      onConfirm: () => {
+        dispatch(leaveChat(activity.id));
+        if (community) {
+          dispatch(leaveCommunity(community.id));
+        }
+        navigation.popToTop();
+      },
+    });
 
   const openMedia = () =>
     navigation.navigate('GroupMedia', { activityId: activity.id });
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={navigation.goBack}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.roundButton,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={t('auth.back')}
-        >
-          <Icon name="chevron-back" size={ms(20)} color={colors.text} />
-        </Pressable>
-      </View>
+      <ScreenHeader title={t('chat.info.title')} onBack={navigation.goBack} />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -198,15 +216,35 @@ export default function GroupChatInfoScreen({ navigation, route }: Props) {
               accessibilityLabel={t('chat.info.notifications')}
             />
           </View>
+          {community ? (
+            <SettingLink
+              icon="people-circle-outline"
+              label={t('chat.info.viewCommunity')}
+              onPress={() =>
+                navigation.push('CommunityDetail', {
+                  communityId: community.id,
+                })
+              }
+              styles={styles}
+            />
+          ) : (
+            <SettingLink
+              icon="information-circle-outline"
+              label={t('chat.info.viewActivity')}
+              onPress={() =>
+                navigation.push('ActivityDetail', {
+                  activityId: activity.id,
+                  viewOnly: true,
+                })
+              }
+              styles={styles}
+            />
+          )}
           <SettingLink
-            icon="information-circle-outline"
-            label={t('chat.info.viewActivity')}
-            onPress={() =>
-              navigation.push('ActivityDetail', {
-                activityId: activity.id,
-                viewOnly: true,
-              })
-            }
+            icon="log-out-outline"
+            label={t('chat.info.leave')}
+            onPress={askLeave}
+            danger
             styles={styles}
           />
         </View>
@@ -286,14 +324,18 @@ function SettingLink({
   icon,
   label,
   onPress,
+  danger,
   styles,
 }: {
   icon: string;
   label: string;
   onPress: () => void;
+  /** Undoes something, e.g. leaving: in the warning colour. */
+  danger?: boolean;
   styles: GroupChatInfoStyles;
 }) {
   const { colors } = useTheme();
+  const tint = danger ? colors.danger : colors.text;
   return (
     <Pressable
       onPress={onPress}
@@ -304,11 +346,17 @@ function SettingLink({
       ]}
       accessibilityRole="button"
     >
-      <Icon name={icon} size={ms(20)} color={colors.text} />
+      <Icon name={icon} size={ms(20)} color={tint} />
       <View style={styles.settingBody}>
-        <Text style={styles.settingLabel}>{label}</Text>
+        <Text style={[styles.settingLabel, { color: tint }]}>{label}</Text>
       </View>
-      <Icon name="chevron-forward" size={ms(16)} color={colors.textSecondary} />
+      {danger ? null : (
+        <Icon
+          name="chevron-forward"
+          size={ms(16)}
+          color={colors.textSecondary}
+        />
+      )}
     </Pressable>
   );
 }

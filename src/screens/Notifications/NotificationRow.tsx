@@ -145,8 +145,11 @@ function NotificationRow({
           <View>
             {actor ? (
               <Image source={actor.avatar} style={styles.avatar} />
-            ) : activity?.cover ? (
-              <Image source={activity.cover} style={styles.avatar} />
+            ) : activity?.photo ?? activity?.cover ? (
+              <Image
+                source={activity.photo ?? activity.cover}
+                style={styles.avatar}
+              />
             ) : (
               <View style={styles.art}>
                 <Text style={styles.artEmoji}>

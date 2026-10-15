@@ -39,9 +39,16 @@ const USER_LIST: User[] = [
     distanceKm: 1.1,
     freeInMinutes: null,
     note: 'Pace ~5:45 min/km',
+    hometown: 'nghe-an',
+    currentCity: 'ha-noi',
+    bio: 'Chạy bộ buổi sáng quanh Hồ Tây, cà phê sau mỗi buổi chạy ☕',
     trust: 98,
     activitiesCount: 12,
     interests: ['running', 'coffee', 'football'],
+    customInterests: [
+      { id: 'minh-0', name: 'Bóng rổ', emoji: '🏀', image: null },
+      { id: 'minh-1', name: 'Leo núi', emoji: '🧗', image: null },
+    ],
   },
   {
     id: 'lan',
@@ -51,9 +58,16 @@ const USER_LIST: User[] = [
     distanceKm: 0.7,
     freeInMinutes: null,
     note: 'Product designer',
+    hometown: 'hai-phong',
+    currentCity: 'ha-noi',
+    bio: 'Product designer. Thích cà phê yên tĩnh và học thêm ngôn ngữ mới.',
     trust: 95,
     activitiesCount: 7,
     interests: ['coffee', 'coworking', 'language', 'food'],
+    customInterests: [
+      { id: 'lan-0', name: 'Board game', emoji: '🎲', image: null },
+      { id: 'lan-1', name: 'Vẽ màu nước', emoji: '🎨', image: null },
+    ],
   },
   {
     id: 'linh',
@@ -75,6 +89,8 @@ const USER_LIST: User[] = [
     distanceKm: 2.4,
     freeInMinutes: null,
     note: 'Midfielder, 5v5',
+    hometown: 'thanh-hoa',
+    currentCity: 'ha-noi',
     trust: 90,
     activitiesCount: 4,
     interests: ['running', 'football'],
@@ -115,6 +131,10 @@ const USER_LIST: User[] = [
     trust: 93,
     activitiesCount: 8,
     interests: ['walking', 'photography', 'coffee'],
+    customInterests: [
+      { id: 'phuong-linh-0', name: 'Cắm trại', emoji: '🏕️', image: null },
+      { id: 'phuong-linh-1', name: 'Leo núi', emoji: '🧗', image: null },
+    ],
   },
   {
     id: 'bao-ngoc',
@@ -127,6 +147,10 @@ const USER_LIST: User[] = [
     trust: 95,
     activitiesCount: 12,
     interests: ['food', 'coffee', 'language'],
+    customInterests: [
+      { id: 'bao-ngoc-0', name: 'Bóng rổ', emoji: '🏀', image: null },
+      { id: 'bao-ngoc-1', name: 'Làm bánh', emoji: '🧁', image: null },
+    ],
   },
   {
     id: 'hai-long',
@@ -154,9 +178,16 @@ const USER_LIST: User[] = [
     distanceKm: 1.4,
     freeInMinutes: 20,
     note: 'Easy pace 6:00',
+    hometown: 'hue',
+    currentCity: 'ha-noi',
+    bio: 'Đi bộ, chụp ảnh và tìm quán ngon cuối tuần 📷',
     trust: 100,
     activitiesCount: 15,
     interests: ['photography', 'walking', 'running', 'coffee'],
+    customInterests: [
+      { id: 'thao-vy-0', name: 'Leo núi', emoji: '🧗', image: null },
+      { id: 'thao-vy-1', name: 'Cắm trại', emoji: '🏕️', image: null },
+    ],
     freeWish: {
       category: 'photography',
       text: 'Looking for a golden hour photo buddy',
@@ -172,6 +203,9 @@ const USER_LIST: User[] = [
     distanceKm: 3.8,
     freeInMinutes: 10,
     note: 'Street food hunter',
+    hometown: 'ha-noi',
+    currentCity: 'ha-noi',
+    bio: 'Street food hunter 🍜',
     trust: 94,
     activitiesCount: 11,
     interests: ['food', 'coffee', 'badminton', 'walking'],
@@ -188,9 +222,15 @@ const USER_LIST: User[] = [
     distanceKm: 1.0,
     freeInMinutes: 0,
     note: 'Pace ~6:00 min/km',
+    currentCity: 'ha-noi',
+    bio: 'Cầu lông tối thứ 3, chạy nhẹ cuối tuần.',
     trust: 97,
     activitiesCount: 10,
     interests: ['running', 'badminton', 'walking'],
+    customInterests: [
+      { id: 'gia-han-0', name: 'Bơi lội', emoji: '🏊', image: null },
+      { id: 'gia-han-1', name: 'Yoga', emoji: '🧘', image: null },
+    ],
     freeWish: { category: 'badminton', text: 'Need a doubles partner tonight' },
     coordinate: [105.8268, 21.0602],
     locationPublic: true,
@@ -219,17 +259,33 @@ export const USERS: Record<string, User> = Object.fromEntries(
   USER_LIST.map(user => [user.id, user]),
 );
 
-/** People already on the signed-in user's friend list. */
-const FRIEND_IDS = new Set([
+/** People already on the signed-in user's friend list (until they unfriend). */
+export const FRIEND_IDS: readonly string[] = [
   'minh',
   'lan',
   'thao-vy',
   'gia-han',
   'phuong-linh',
   'bao-ngoc',
-]);
+];
 
-export const isFriend = (userId: string) => FRIEND_IDS.has(userId);
+/** On the mock list; the store's `unfriendedIds` takes people off (see useFriends). */
+export const isFriend = (userId: string) => FRIEND_IDS.includes(userId);
+
+/** People who follow the signed-in user, until the server says. */
+const FOLLOWER_IDS = [
+  'minh',
+  'lan',
+  'huy',
+  'an',
+  'thao-vy',
+  'mai',
+  'duc-anh',
+  'hai-long',
+];
+export const followerCount = () => FOLLOWER_IDS.length;
+export const followerList = () =>
+  FOLLOWER_IDS.map(id => USERS[id]).filter(Boolean);
 
 /**
  * One activity per state the detail screen handles, plus past ones for the
@@ -270,6 +326,7 @@ export const ACTIVITIES: Activity[] = [
   // Upcoming, joined.
   {
     id: 'quang-an-doubles',
+    photo: require('@/assets/images/activities/badminton.jpg'),
     category: 'badminton',
     title: 'Doubles at Quang An Court',
     markerTitle: 'Badminton Doubles',
@@ -297,6 +354,7 @@ export const ACTIVITIES: Activity[] = [
   // Ongoing, not joined: details only.
   {
     id: 'highlands-cowork',
+    photo: require('@/assets/images/activities/coffee.jpg'),
     category: 'coffee',
     title: 'Coffee & Casual Co-work',
     markerTitle: 'Highlands Chill',
@@ -406,6 +464,7 @@ export const ACTIVITIES: Activity[] = [
   },
   {
     id: 'old-quarter-pho-crawl',
+    photo: require('@/assets/images/activities/food.jpg'),
     category: 'food',
     title: 'Old Quarter Pho Crawl',
     markerTitle: 'Pho Crawl',
@@ -487,6 +546,7 @@ export const ACTIVITIES: Activity[] = [
   },
   {
     id: 'board-game-night',
+    photo: require('@/assets/images/activities/gaming.jpg'),
     category: 'gaming',
     title: 'Board Game Night',
     markerTitle: 'Board Games',
@@ -605,6 +665,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'primary',
     membersCount: 1200,
     schedule: 'Daily runs at 18:00',
+    description:
+      'A friendly crew running the lakes at sunset. All paces welcome: we split into groups and finish together with a stretch and a drink.',
+    meetingPlace: 'Thanh Nien Rd, West Lake',
   },
   {
     id: 'coffee-connect',
@@ -614,6 +677,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'neutral',
     membersCount: 850,
     schedule: 'Saturday morning meetups',
+    description:
+      'Slow Saturday mornings over good coffee. Come to meet new people, practise talking, or just read next to friendly faces.',
+    meetingPlace: 'Rotating cafes in Tay Ho',
   },
   {
     id: 'badminton-newbies',
@@ -623,6 +689,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'success',
     membersCount: 620,
     schedule: 'Weekend friendly games',
+    description:
+      'Just picked up a racket? So did we. Relaxed doubles for beginners, with a few regulars happy to share tips.',
+    meetingPlace: 'Quang An Court',
   },
   {
     id: 'street-food',
@@ -632,6 +701,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'primary',
     membersCount: 430,
     schedule: 'Food walks every Friday',
+    description:
+      'We eat our way through the Old Quarter one stall at a time. Bring an appetite and some cash; we split the bill.',
+    meetingPlace: 'Hoan Kiem Lake, north side',
   },
   {
     id: 'hanoi-lens',
@@ -641,6 +713,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'neutral',
     membersCount: 1500,
     schedule: 'Photo walks every Sunday',
+    description:
+      "Phone or camera, it doesn't matter. Weekly walks to shoot Hanoi's streets, then coffee to share the best shots.",
+    meetingPlace: 'Phung Hung murals',
   },
   {
     id: 'pickup-football',
@@ -650,6 +725,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'success',
     membersCount: 980,
     schedule: 'Pickup games Tue & Thu nights',
+    description:
+      'Casual 5v5 and 7v7 pickup games. Teams are mixed on the spot; just bring boots and water.',
+    meetingPlace: 'Cau Giay pitches',
   },
   {
     id: 'board-game-night',
@@ -659,6 +737,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'primary',
     membersCount: 760,
     schedule: 'Game nights on Wednesdays',
+    description:
+      'From quick party games to long strategy nights. We bring the games, you bring friends.',
+    meetingPlace: 'Old Quarter game cafe',
   },
   {
     id: 'west-lake-walkers',
@@ -668,6 +749,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'success',
     membersCount: 540,
     schedule: 'Evening loops around West Lake',
+    description:
+      'An easy evening loop around West Lake to unwind after work. Chat, walk, and stop for che on the way.',
+    meetingPlace: 'Tran Quoc Pagoda gate',
   },
   {
     id: 'cafe-coworkers',
@@ -677,6 +761,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'neutral',
     membersCount: 510,
     schedule: 'Focus sessions on weekdays',
+    description:
+      'Remote workers and students sharing a table to stay focused. Pomodoro sprints, then lunch together.',
+    meetingPlace: 'Highlands Coffee Boat',
   },
   {
     id: 'smash-club',
@@ -686,6 +773,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'primary',
     membersCount: 450,
     schedule: 'Intermediate doubles on weekdays',
+    description:
+      'Intermediate doubles for players who want faster rallies. Rotating partners every game.',
+    meetingPlace: 'My Dinh Arena',
   },
   {
     id: 'indie-movie',
@@ -695,6 +785,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'neutral',
     membersCount: 390,
     schedule: 'Indie screenings twice a month',
+    description:
+      'Screenings of indie and festival films, followed by a relaxed chat about what we watched.',
+    meetingPlace: 'Tadioto, Hoan Kiem',
   },
   {
     id: 'language-exchange',
@@ -704,6 +797,9 @@ export const COMMUNITIES: Community[] = [
     tone: 'success',
     membersCount: 1100,
     schedule: 'English-Vietnamese swaps on Thursdays',
+    description:
+      'Half English, half Vietnamese. Meet locals and expats, practise speaking, and make friends along the way.',
+    meetingPlace: 'Cong Caphe, Trang Thi',
   },
   {
     id: 'early-birds',
@@ -713,11 +809,80 @@ export const COMMUNITIES: Community[] = [
     tone: 'success',
     membersCount: 310,
     schedule: 'Sunrise runs at 5:30',
+    description:
+      'Sunrise runs before the city wakes up. Short, steady loops followed by pho together.',
+    meetingPlace: 'Hoan Kiem Lake',
   },
 ];
 
+/** The group chat of a community, by the community's id. */
+export const communityChatId = (communityId: string) =>
+  `community-${communityId}`;
+
+/**
+ * A community's group chat, shaped like an activity that's always on, with
+ * a few people who like that kind of thing as its members.
+ */
+function communityChat(community: Community): Activity {
+  const fans = USER_LIST.filter(user =>
+    user.interests.includes(community.category),
+  ).slice(0, 5);
+  const people = fans.length >= 2 ? fans : USER_LIST.slice(0, 4);
+  return {
+    id: communityChatId(community.id),
+    communityId: community.id,
+    category: community.category,
+    title: community.name,
+    markerTitle: community.name,
+    tag: community.schedule,
+    description: community.schedule,
+    longDescription: community.schedule,
+    coordinate: ACTIVITIES[0].coordinate,
+    distanceKm: 0,
+    meetingPoint: '',
+    routeLabel: '',
+    routeName: '',
+    // Started a year ago and never ends: always "on".
+    startsInMinutes: -365 * 24 * 60,
+    durationMinutes: 100 * 365 * 24 * 60,
+    createdMinutesAgo: 365 * 24 * 60,
+    instantMatch: false,
+    hostId: people[0].id,
+    members: people.map(user => ({
+      userId: user.id,
+      status: '',
+      ready: false,
+    })),
+    extraTile: { kind: 'vibe', value: '', hint: '' },
+  };
+}
+
+const COMMUNITY_CHATS = new Map(
+  COMMUNITIES.map(community => [
+    communityChatId(community.id),
+    communityChat(community),
+  ]),
+);
+
+export const getCommunity = (id: string) =>
+  COMMUNITIES.find(community => community.id === id);
+
+/** People in a community, as its group chat has them, host first. */
+export const communityMembers = (communityId: string) =>
+  (COMMUNITY_CHATS.get(communityChatId(communityId))?.members ?? []).map(
+    member => USERS[member.userId],
+  );
+
+/** Upcoming or ongoing activities of a community's kind, soonest first. */
+export const communityActivities = (community: Community) =>
+  ACTIVITIES.filter(
+    activity =>
+      activity.category === community.category && isBrowsable(activity),
+  ).sort((a, b) => a.startsInMinutes - b.startsInMinutes);
+
+/** An activity, or a community's group chat (see communityChat). */
 export const getActivity = (id: string) =>
-  ACTIVITIES.find(activity => activity.id === id);
+  ACTIVITIES.find(activity => activity.id === id) ?? COMMUNITY_CHATS.get(id);
 
 export const getUser = (id: string) => USERS[id];
 
@@ -770,6 +935,14 @@ export const findTimeConflict = (
   );
 
 /** Completed activities the user took part in, most recent first. */
+/** Finished activities someone else took part in, the latest first. */
+export const userHistory = (userId: string) =>
+  ACTIVITIES.filter(
+    activity =>
+      activityStatus(activity) === 'completed' &&
+      activity.members.some(member => member.userId === userId),
+  ).sort((a, b) => b.startsInMinutes - a.startsInMinutes);
+
 export const activityHistory = (joinedIds: readonly string[]) =>
   ACTIVITIES.filter(
     activity =>

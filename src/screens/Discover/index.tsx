@@ -25,10 +25,11 @@ import {
   isBrowsable,
   isJoined,
 } from '@/services/mockData';
+import { useCommunityActions } from '@/hooks/useCommunity';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useJoinActivity } from '@/hooks/useJoinActivity';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { joinActivity, toggleCommunity } from '@/store/slices/activitySlice';
+import { joinActivity } from '@/store/slices/activitySlice';
 import { useTheme } from '@/theme';
 import type { MainTabParamList, RootStackParamList } from '@/types/navigation';
 import { normalizeSearch } from '@/utils/format';
@@ -143,10 +144,7 @@ export default function DiscoverScreen({ navigation }: Props) {
     [requestJoin, dispatch],
   );
 
-  const toggleGroup = useCallback(
-    (communityId: string) => dispatch(toggleCommunity(communityId)),
-    [dispatch],
-  );
+  const communityActions = useCommunityActions();
 
   return (
     <View style={styles.safe}>
@@ -372,7 +370,9 @@ export default function DiscoverScreen({ navigation }: Props) {
                   community={community}
                   joined={joinedCommunityIds.includes(community.id)}
                   styles={styles}
-                  onToggle={toggleGroup}
+                  onJoin={communityActions.join}
+                  onOpenChat={communityActions.openChat}
+                  onOpen={communityActions.openDetail}
                 />
               ))}
             </View>

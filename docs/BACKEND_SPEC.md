@@ -20,7 +20,7 @@ Toàn bộ BE chạy trên Cloudflare:
 | **D1** (SQLite)          | **Database chính, nguồn sự thật** cho mọi dữ liệu có cấu trúc: user, hoạt động, thành viên, broadcast, quan hệ xã hội, tin nhắn chat, story, lượt xem, trả lời…                                   |
 | **R2**                   | **Mọi media**: ảnh hoạt động, avatar, ảnh và voice trong chat, ảnh / video story (kèm ảnh bìa), nhạc cho story. Media được **nén ở app trước khi upload** ([1.4](#14-nén-trước-khi-upload)).      |
 | **Durable Objects (DO)** | **Mọi thứ realtime**: chat nhóm, vị trí live khi đi hoạt động, trạng thái thành viên ("Đang tới…", check-in), số người, đẩy cập nhật về app đang mở ([11.1](#111-realtime-bằng-durable-objects)). |
-| Cron Triggers            | Việc định kỳ: xoá story hết hạn (bản ghi D1 + file R2), xoá upload không dùng, nhắc hoạt động sắp bắt đầu.                                                                                        |
+| Cron Triggers            | Việc định kỳ: xoá story hết hạn (bản ghi D1 + file R2; trừ story đã ghim lên trang cá nhân), xoá upload không dùng, nhắc hoạt động sắp bắt đầu.                                                                                        |
 
 ```
 App ──REST──▶ Worker ──▶ D1   (đọc / ghi dữ liệu)
@@ -96,7 +96,7 @@ Mọi media lưu trên **R2**. Ảnh, video và tin nhắn thoại không đi qu
 
 ```json
 // POST /uploads
-{ "purpose": "story" | "story_poster" | "chat_photo" | "chat_video" | "chat_video_poster" | "chat_voice" | "avatar" | "custom_activity",
+{ "purpose": "story" | "story_poster" | "chat_photo" | "chat_video" | "chat_video_poster" | "chat_voice" | "avatar" | "custom_activity" | "broadcast_photo",
   "contentType": "image/jpeg", "sizeBytes": 412345 }
 // 201
 { "uploadId": "upl_123", "uploadUrl": "https://…r2.cloudflarestorage.com/…?X-Amz-Signature=…",
@@ -110,6 +110,7 @@ Mọi media lưu trên **R2**. Ảnh, video và tin nhắn thoại không đi qu
 | `chat_photo`                | `image/jpeg`                                   | ≤ 2 MB / ảnh, tối đa 5 ảnh / tin     |
 | `chat_video`                | `video/mp4`                                    | ≤ 10 giây, ≤ 5 MB                    |
 | `chat_video_poster`         | `image/jpeg` (ảnh bìa video chat, app tự cắt)  | ≤ 300 KB                             |
+| `broadcast_photo`           | `image/jpeg` (ảnh mô tả "Mình rảnh")           | ≤ 2 MB, 1 ảnh / broadcast            |
 | `chat_voice`                | `audio/mp4` (AAC, đuôi `.m4a`)                 | ≤ 5 phút, ≤ 3 MB                     |
 | `avatar`, `custom_activity` | `image/jpeg`                                   | ≤ 1 MB                               |
 
@@ -173,9 +174,14 @@ interface User {
   trust: number; // 0–100, % tin cậy (xem 4.6)
   activitiesCount: number; // số hoạt động đã hoàn thành
   interests: ActivityCategory[];
+  customInterests: string[]; // sở thích tự nhập ngoài danh mục: ≤ 10 mục, mỗi mục ≤ 24 ký tự, không trùng (bỏ dấu, không phân biệt hoa thường) với nhau và với tên danh mục
+  hometown?: ProvinceId | null; // quê quán, cấp tỉnh/thành
+  currentCity?: ProvinceId | null; // nơi ở hiện tại, cấp tỉnh/thành
   createdAt: string;
 }
 ```
+
+`ProvinceId` là id một trong 34 tỉnh/thành (sau sáp nhập 07/2025), vd `ha-noi`, `ho-chi-minh`, `nghe-an`: chính là `codename` của [API tỉnh thành mở](https://provinces.open-api.vn/api/v2/p/) (v2) với `_` đổi thành `-`. FE gọi API này mỗi lần mở app (ngay lúc splash, chạy ngầm) và giữ kết quả trong Redux (`placesSlice`), các màn chỉ đọc từ đó; chỉ khi gọi lỗi mới dùng bản dựng sẵn trong app (`src/services/places.ts`). Tên cũ để tìm kiếm (vd "Sài Gòn", "Bình Dương") do FE tự thêm vì API không có. BE nên kiểm tra `hometown` / `currentCity` thuộc danh sách codename của cùng API (id lạ → `400 VALIDATION_ERROR`); FE gặp id lạ thì bỏ qua (không hiện).
 
 **Thông tin công khai (`PublicUser`)** — dùng khi hiển thị người khác: bỏ `email`, thêm các trường theo ngữ cảnh:
 
@@ -186,14 +192,18 @@ interface PublicUser {
   age?: number;
   avatarUrl?: string;
   note?: string;
+  bio?: string; // giới thiệu; không có thì màn hồ sơ ẩn dòng này
   trust: number;
   activitiesCount: number;
   interests: ActivityCategory[];
+  hometown?: ProvinceId | null;
+  currentCity?: ProvinceId | null;
   distanceKm?: number; // so với vị trí người xem
   // Quan hệ với người xem:
   isFollowing?: boolean;
   friendRequestStatus?: FriendRequestStatus | null;
   invitedByMe?: boolean;
+  isFriend?: boolean;
 }
 ```
 
@@ -209,6 +219,7 @@ interface Activity {
   description: string; // 1 dòng trên card
   longDescription: string; // màn chi tiết
   coverUrl?: string; // ảnh bìa → card lớn có ảnh
+  photoUrl?: string; // ảnh mô tả host đăng kèm (tối đa 1): làm thumbnail trên mọi card hoạt động (Home, Discover, danh sách chat, thông báo); không có thì card giữ như cũ
   location: { lat: number; lng: number };
   meetingPoint: string; // tên điểm hẹn
   routeLabel: string;
@@ -261,6 +272,9 @@ interface Community {
   tone: CommunityTone;
   membersCount: number;
   schedule: string; // vd "Daily runs at 18:00"
+  description?: string; // giới thiệu, hiện ở màn chi tiết cộng đồng
+  meetingPlace?: string; // nơi hay gặp, vd "Thanh Nien Rd, West Lake"
+  coverUrl?: string; // ảnh bìa màn chi tiết; không có thì FE dùng ảnh theo category
   joined: boolean; // người xem đã tham gia nhóm
 }
 ```
@@ -279,6 +293,8 @@ interface Broadcast {
   availableUntil: string; // availableFrom + duration
   radiusKm: number; // 0.5 – 10, bước 0.5
   note?: string; // ≤ 200 ký tự, hiển thị như "freeWish"
+  photoUrl?: string; // ảnh mô tả, tối đa 1 ảnh (upload purpose `broadcast_photo`)
+  thumbnailUrl?: string; // = photoUrl nếu có, không thì ảnh của hoạt động tự đặt (nếu có); không có cả hai → FE dùng icon của hoạt động
   location: { lat: number; lng: number };
   locationPublic: boolean; // cho phép hiện trên bản đồ Free nearby
   createdAt: string;
@@ -366,8 +382,16 @@ interface ChatReaction {
 }
 
 /** Một dòng trong tab Chats (`src/screens/Chats`). */
+/** Loại cuộc trò chuyện: nhắn riêng với một người, nhóm của hoạt động, nhóm của cộng đồng. */
+type ChatKind = 'personal' | 'activity' | 'community';
+
 interface ChatSummary {
-  activity: ActivityCard; // tiêu đề, category, ảnh, giờ, status, số thành viên
+  id: string; // activityId | `community-{communityId}` | id hội thoại cá nhân
+  kind: ChatKind;
+  category: ActivityCategory; // để lọc theo loại hoạt động (cá nhân: không có)
+  activity?: ActivityCard; // kind = activity: tiêu đề, category, ảnh, giờ, status, số thành viên
+  community?: { id: string; name: string; category: ActivityCategory; membersCount: number }; // kind = community
+  peer?: PublicUser; // kind = personal (chưa có UI)
   lastMessage?: ChatMessage;
   unreadCount: number; // tin của người khác gửi sau `lastReadAt`
   lastReadAt?: string;
@@ -399,6 +423,8 @@ interface Story {
   postedAt: string;
   expiresAt: string; // postedAt + 24h
   seen?: boolean; // người xem đã mở story này chưa (không trả cho chính chủ)
+  pinnedAt?: string; // đã ghim lên trang cá nhân lúc nào; chỉ trả cho chính chủ
+  pinnedTitle?: string | null; // chữ dưới story đã ghim, ≤ 30 ký tự, 1 dòng; "" = không hiện chữ; null = hiện ngày đăng
 }
 
 type StoryMedia =
@@ -546,7 +572,12 @@ interface MusicTrack {
 - **Gắn thẻ:** `mentionIds` chỉ gồm thành viên nhóm; người được gắn nhận thông báo kể cả khi đã tắt thông báo nhóm.
 - **Đã đọc / chưa đọc:** mỗi người một mốc `lastReadAt` cho mỗi nhóm. `unreadCount` = số tin của người khác có `sentAt > lastReadAt`. FE đánh dấu đã đọc khi mở nhóm.
 - **Tắt thông báo** (mute) theo từng nhóm: không push, nhưng vẫn đếm chưa đọc.
-- **Xoá đoạn chat** (vuốt trái một dòng ở tab Chats): chỉ xoá **phía người xoá**, những người khác không bị ảnh hưởng và user vẫn là thành viên. Lưu mốc `clearedAt` cho (user, nhóm): tin có `sentAt <= clearedAt` không trả về cho user này nữa, nhóm không còn trong `/me/chats` cho tới khi có tin mới (`sentAt > clearedAt`) thì hiện lại, chỉ với các tin sau mốc đó.
+- **Nhóm chat cộng đồng:** mỗi cộng đồng có một nhóm chat (`chatId = community-{communityId}`), thành viên là thành viên cộng đồng. Gia nhập cộng đồng là vào nhóm chat; nút trên dòng cộng đồng đổi thành "Mở nhóm chat". Nhóm chat cộng đồng luôn mở (không có trạng thái sắp/đang/đã kết thúc) và không có "Xem chi tiết hoạt động". `/me/chats` trả cả nhóm hoạt động lẫn nhóm cộng đồng (`kind: 'activity' | 'community'`).
+- **Rời khỏi nhóm** (Thông tin nhóm → Rời khỏi nhóm, có xác nhận): nhóm cộng đồng → rời cộng đồng (`DELETE /communities/{id}/membership`); nhóm hoạt động → chỉ rời nhóm chat (`DELETE /chats/{id}/membership`), user vẫn tham gia hoạt động; nhóm không còn trong `/me/chats` và user không nhận tin của nhóm, cho tới khi mở lại nhóm chat (vd từ màn chi tiết hoạt động → `PUT /chats/{id}/membership`) hoặc gia nhập lại cộng đồng.
+- **Bộ lọc tab Chats:** `Tất cả`, `Chưa đọc` (`unreadCount > 0`), theo loại `Cá nhân` / `Nhóm hoạt động` / `Nhóm cộng đồng` (`kind`), và theo loại hoạt động (`category`, chỉ những loại user đang có chat). `GET /me/chats?filter=all|unread&kind=personal|activity|community&category=&q=`.
+- **Xoá đoạn chat** (vuốt trái một dòng ở tab Chats, có xác nhận): **không phải rời nhóm**. Chỉ xoá tin nhắn và lịch sử trò chuyện **phía người xoá**; người khác không bị ảnh hưởng, user vẫn là thành viên, vẫn nhận tin mới và nhóm **vẫn ở trong** `/me/chats` (không có tin cuối thì hiện "Chưa có tin nhắn"). Lưu mốc `clearedAt` cho (user, chat) trong `chat_clears`: tin có `sentAt <= clearedAt` không bao giờ trả về cho user này nữa (kể cả ảnh trong "Ảnh và đa phương tiện", số tin, tìm kiếm); `unreadCount` chỉ đếm tin sau mốc. Xoá lần nữa thì dời mốc lên.
+- **Rời nhóm khác xoá đoạn chat:** rời là thôi là thành viên của chat (`chat_members.leftAt`): không nhận tin, không còn trong `/me/chats`. Với nhóm cộng đồng, rời nhóm chat = huỷ gia nhập cộng đồng (xoá `community_members`) và ngược lại; gia nhập lại cộng đồng thì vào lại nhóm chat (lịch sử trước khi rời vẫn ẩn nếu đã có `clearedAt`).
+- **Gợi ý bảng:** `chats (id, kind, activity_id?, community_id?, created_at)`; `chat_members (chat_id, user_id, joined_at, left_at?)` — nguồn sự thật cho ai ở trong nhóm (nhóm hoạt động: đồng bộ với `activity_members`, nhóm cộng đồng: với `community_members`); `chat_clears (chat_id, user_id, cleared_at)`; `chat_reads`, `chat_mutes` như cũ, khoá theo `chat_id`.
 - **Báo cáo:** người báo cáo không được báo cáo tin của chính mình; mỗi người chỉ báo cáo một tin một lần (gửi lại coi như thành công). Người bị báo cáo không biết.
 - **Tab Chats** liệt kê nhóm của mọi hoạt động user đã join (kể cả đã kết thúc), sắp theo tin mới nhất. Bộ lọc: Tất cả / Chưa đọc / Nhóm (hơn 2 người) / theo `ActivityCategory`. Tìm kiếm theo tên hoạt động, tên thành viên.
 
@@ -608,19 +639,59 @@ Validate: email đúng định dạng, mật khẩu ≥ 6 ký tự (khớp FE). 
 
 ## 6. API — User & Profile
 
-| Method | Path           | Mô tả                                  | Màn            |
-| ------ | -------------- | -------------------------------------- | -------------- |
-| GET    | `/me`          | Hồ sơ của tôi + thống kê               | Profile        |
-| PATCH  | `/me`          | Sửa tên, tuổi, avatar, note, interests | (chưa có UI)   |
-| PUT    | `/me/location` | Cập nhật vị trí hiện tại               | Home, I'm Free |
-| GET    | `/users/{id}`  | Hồ sơ công khai                        | (chưa có UI)   |
+| Method | Path           | Mô tả                                 | Màn            |
+| ------ | -------------- | ------------------------------------- | -------------- |
+| GET    | `/me`          | Hồ sơ của tôi + thống kê              | Profile        |
+| PATCH  | `/me`          | Sửa tên, avatar, giới thiệu, sở thích (cả tự nhập), quê quán, nơi ở (`null` = bỏ) | Sửa hồ sơ      |
+| PUT    | `/me/location` | Cập nhật vị trí hiện tại              | Home, I'm Free |
+| GET    | `/users/{id}`  | Hồ sơ công khai                       | Hồ sơ người khác |
+
+`GET /users/{id}` (màn `UserProfile`, dùng chung giao diện Profile) trả `PublicUser` kèm:
+
+```ts
+{
+  user: PublicUser; // có isFriend, isFollowing, friendRequestStatus
+  history: Activity[]; // hoạt động đã kết thúc người đó tham gia, mới trước (tab "Đã tham gia")
+  stories: Story[]; // story còn hạn, chỉ khi người xem là bạn bè; không có thì []
+  commonGround: {
+    interests: ActivityCategory[]; // sở thích chung với người xem, theo thứ tự của người đó
+    activities: number; // số hoạt động đã kết thúc cả hai cùng tham gia
+  };
+}
+```
+
+Không có tab "Lưu trữ" cho người khác (hoạt động đã lưu chỉ chủ tài khoản thấy). FE hiện tại: `userHistory` trong `src/services/mockData.ts`, `commonGround` trong `src/services/profile.ts`; nút Nhắn tin chưa có API tin nhắn riêng (đang báo "Sắp ra mắt").
 
 ```http
 PUT /me/location
 { "lat": 21.0515, "lng": 105.833 }
 ```
 
-`GET /me` trả `User` + `{ "stats": { "completedCount": 3 } }`.
+`GET /me` trả `User` + `joinedAt` (lúc đăng ký) + thống kê cho màn Profile:
+
+```json
+{
+  "stats": {
+    "completedCount": 9, // hoạt động đã tham gia và đã kết thúc
+    "hoursTogether": 16, // tổng thời lượng các hoạt động đó, làm tròn giờ
+    "friendCount": 6,
+    "usualCategories": [{ "category": "coffee", "count": 4 }] // hay đi nhất, nhiều trước
+  }
+}
+```
+
+`PATCH /me` (gửi trường nào sửa trường đó):
+
+```json
+{
+  "displayName": "Gray", // bắt buộc khác rỗng, tối đa 40 ký tự
+  "bio": "Sáng chạy quanh Hồ Tây", // tối đa 150 ký tự; "" hoặc null để xoá
+  "avatarUploadId": "upl_9", // ảnh đã upload với purpose "avatar"; null để gỡ ảnh
+  "interests": ["running", "coffee"] // ActivityCategory, không trùng
+}
+```
+
+Hiện FE giữ ảnh đại diện trong store dưới dạng `data:` uri (JPEG ≤ 512 px) cho tới khi có upload thật. Ngôn ngữ và chế độ sáng / tối chỉ lưu trên máy, không gửi lên server.
 
 ---
 
@@ -724,10 +795,11 @@ Sau khi join: thông báo cho host ([mục 11](#11-thông-báo--realtime)).
 
 ### 7.9 Lưu / chia sẻ (header màn chi tiết)
 
-| Method | Path                    |
-| ------ | ----------------------- |
-| PUT    | `/activities/{id}/save` |
-| DELETE | `/activities/{id}/save` |
+| Method | Path                       | Màn                                   |
+| ------ | -------------------------- | ------------------------------------- |
+| PUT    | `/activities/{id}/save`    | Chi tiết hoạt động → nút lưu          |
+| DELETE | `/activities/{id}/save`    | Chi tiết hoạt động → bỏ lưu           |
+| GET    | `/me/saved?limit=&cursor=` | Profile → tab Lưu trữ (mới lưu trước) |
 
 Chia sẻ dùng share sheet của máy; BE chỉ cần deep link `https://<domain>/a/{id}` (cần chốt).
 
@@ -753,8 +825,9 @@ Nút "+" trên tab bar — **chưa có màn tạo**. Dự kiến `POST /activiti
 | Method | Path                                    | Mô tả                                                                              |
 | ------ | --------------------------------------- | ---------------------------------------------------------------------------------- |
 | GET    | `/communities?category=&limit=&cursor=` | Sắp theo `membersCount` giảm dần (thay `fetchCommunities`); Discover lấy 3 mục đầu |
-| PUT    | `/communities/{id}/membership`          | Tham gia nhóm                                                                      |
-| DELETE | `/communities/{id}/membership`          | Rời nhóm                                                                           |
+| GET    | `/communities/{id}`                     | Màn chi tiết cộng đồng: `Community` + `description`, `meetingPlace`, `joined`, `membersPreview` (≤ 5 `PublicUser`, bạn bè của người xem lên trước), `friendsCount`, `upcomingActivities` (hoạt động sắp/đang diễn ra cùng `category`, sớm trước). Chưa gia nhập: vẫn trả `membersCount` và `membersPreview` để hiện avatar, nhưng danh sách thành viên đầy đủ (`/chats/{id}/members`), hồ sơ từ đây và `upcomingActivities` chỉ dành cho thành viên → `403 MEMBERS_ONLY` (FE hiện hộp "Chỉ dành cho thành viên" kèm nút Gia nhập) |
+| PUT    | `/communities/{id}/membership`          | Tham gia nhóm, đồng thời vào nhóm chat của cộng đồng (hiện ở tab Chats)          |
+| DELETE | `/communities/{id}/membership`          | Rời nhóm, đồng thời rời nhóm chat (Thông tin nhóm → Rời khỏi nhóm)                 |
 
 ### 8.3 Người rảnh gần đây
 
@@ -797,6 +870,7 @@ POST /broadcasts
   "duration": "1h",
   "radiusKm": 3,
   "note": "Easy 5k around West Lake",
+  "photoUploadId": "upl_123",
   "location": { "lat": 21.05, "lng": 105.83 },
   "locationPublic": true
 }
@@ -805,6 +879,7 @@ POST /broadcasts
 - Mỗi user tối đa **1** broadcast hiệu lực; tạo mới thì thay cái cũ (cần chốt).
 - Response gồm `matchedCount` (số người rảnh phù hợp trong bán kính).
 - Giờ tự chọn không được ở quá khứ (FE đã chặn; BE validate lại).
+- `photoUploadId` không bắt buộc, tối đa 1 ảnh. Có ảnh thì ảnh đó là thumbnail của broadcast (danh sách / bản đồ người rảnh); không có thì giữ như cũ: ảnh của hoạt động tự đặt hoặc icon của loại hoạt động. FE (màn "Mình rảnh", thẻ "Ảnh mô tả") nén ảnh cạnh dài ≤ 1600 px trước khi upload và có ô "Xem trước" theo đúng quy tắc này.
 
 ### 8.5 Hoạt động tự đặt (I'm Free → "Khác")
 
@@ -839,7 +914,7 @@ Thay cho `src/services/chat.ts` (đoạn chat dựng sẵn) và `src/store/slice
 
 | Method | Path                                                | Mô tả                                                                         | Màn                         |
 | ------ | --------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------- |
-| GET    | `/me/chats?filter=&category=&q=&limit=&cursor=`     | Danh sách `ChatSummary`; `filter` = `all` \| `unread` \| `group`              | Tab Chats                   |
+| GET    | `/me/chats?filter=&kind=&category=&q=&limit=&cursor=` | Danh sách `ChatSummary`; `filter` = `all` \| `unread`; `kind` = `personal` \| `activity` \| `community` | Tab Chats                   |
 | GET    | `/chats/{activityId}/messages?before=&limit=30`     | Tin nhắn, mới nhất trước (FE vẽ danh sách đảo ngược)                          | Group chat                  |
 | POST   | `/chats/{activityId}/messages`                      | Gửi tin                                                                       | Group chat                  |
 | DELETE | `/chats/{activityId}/messages/{messageId}`          | Thu hồi tin của mình (chưa có UI)                                             | —                           |
@@ -848,7 +923,8 @@ Thay cho `src/services/chat.ts` (đoạn chat dựng sẵn) và `src/store/slice
 | POST   | `/chats/{activityId}/messages/{messageId}/reports`  | `{ "reason": ReportReason }`                                                  | Giữ tin → Báo cáo           |
 | POST   | `/chats/{activityId}/read`                          | `{ "lastReadAt": "…" }` (chỉ tăng, không lùi)                                 | Mở nhóm                     |
 | PUT    | `/chats/{activityId}/mute` \| `DELETE …/mute`       | Tắt / bật thông báo nhóm                                                      | Thông tin nhóm              |
-| DELETE | `/me/chats/{activityId}`                            | Xoá đoạn chat phía mình (đặt `clearedAt` = bây giờ), xem [4.8](#48-chat-nhóm) | Tab Chats → vuốt trái       |
+| DELETE | `/chats/{activityId}/membership` \| `PUT …`         | Rời nhóm chat hoạt động / vào lại (nhóm cộng đồng: dùng membership của cộng đồng) | Thông tin nhóm → Rời khỏi nhóm |
+| DELETE | `/me/chats/{activityId}`                            | Xoá tin nhắn và lịch sử phía mình (đặt `clearedAt` = bây giờ), vẫn ở trong nhóm, xem [4.8](#48-chat-nhóm) | Tab Chats → vuốt trái       |
 | GET    | `/chats/{activityId}/photos?limit=&cursor=`         | Mọi ảnh trong nhóm, mới trước                                                 | Thông tin nhóm → Ảnh        |
 | GET    | `/chats/{activityId}/members`                       | Thành viên (`PublicUser` + `isHost`)                                          | Thông tin nhóm → Thành viên |
 
@@ -886,6 +962,10 @@ Thay cho `src/services/stories.ts`, `src/store/slices/storySlice.ts` và danh s�
 | GET    | `/stories/feed`                        | `{ mine: Story[], friends: StoryGroup[] }` (còn hạn) | Hàng story ở tab Chats, xem story |
 | POST   | `/stories`                             | Đăng story                                           | Soạn story → "Chia sẻ lên story"  |
 | DELETE | `/stories/{id}`                        | Xoá story của mình                                   | Xem story của mình → 🗑            |
+| PUT    | `/stories/{id}/pin`                    | Ghim story của mình lên trang cá nhân (idempotent)   | Xem story của mình → 📌            |
+| DELETE | `/stories/{id}/pin`                    | Bỏ ghim                                              | Xem story của mình → 📌            |
+| PATCH  | `/stories/{id}/pin`                    | Đổi `pinnedTitle` (`{ "title": string \| null }`)   | Profile → nhấn giữ story đã ghim   |
+| GET    | `/users/me/pinned-stories`             | `Story[]` đã ghim, ghim sau trước, kể cả hết hạn     | Profile → hàng tròn sau "Story mới" |
 | POST   | `/stories/{id}/views`                  | Đánh dấu đã xem (idempotent)                         | Xem story                         |
 | GET    | `/stories/{id}/views?limit=&cursor=`   | Ai đã xem (chỉ chính chủ; chưa có UI)                | —                                 |
 | POST   | `/stories/{id}/replies`                | Trả lời / thả cảm xúc                                | Xem story của bạn bè              |
@@ -953,6 +1033,8 @@ Lỗi: `VIDEO_TOO_LONG`, `MEDIA_TOO_LARGE`, `UNSUPPORTED_MEDIA`, `UPLOAD_NOT_FOU
 ### 10.5 Xoá
 
 `DELETE /stories/{id}` → `204`. Không phải chủ → `403 FORBIDDEN`.
+
+**Ghim lên trang cá nhân:** `PUT /stories/{id}/pin` đặt `pinnedAt = now` (đã ghim thì giữ nguyên), `DELETE /stories/{id}/pin` xoá nó; cả hai trả `204`, không phải chủ → `403 FORBIDDEN`. Story đã ghim **không** bị cron xoá khi hết 24 giờ (cả bản ghi lẫn file R2) và vẫn mở được từ trang cá nhân, nhưng không còn trong `/stories/feed`. Bỏ ghim một story đã hết hạn thì cron lần sau xoá nó. Xoá story thì bỏ ghim luôn. `PATCH /stories/{id}/pin` đổi chữ hiện dưới story trên trang cá nhân: cắt khoảng trắng hai đầu, không cho xuống dòng, tối đa 30 ký tự (quá → `400 VALIDATION_ERROR`); `""` là không hiện chữ, `null` là quay về ngày đăng; story chưa ghim → `409 STORY_NOT_PINNED`. Bỏ ghim thì xoá luôn chữ này. FE: `pinnedIds` trong `src/store/slices/storySlice.ts`, `pinnedStories` trong `src/services/stories.ts`; hiện story của mình chưa lưu qua lần mở app (ảnh nằm ở thư mục tạm), nên ghim cũng mất khi tắt app cho tới khi có API này.
 
 ### 10.6 Nhạc
 
@@ -1109,6 +1191,8 @@ Khi mất kết nối, app tải lại phần bị lỡ bằng REST (`/chats/{id
 | `UNSUPPORTED_MEDIA`     | 400  | Sai loại file                                               | Báo lỗi, cho chọn lại                                           |
 | `UPLOAD_NOT_FOUND`      | 400  | `uploadId` sai, hết hạn hoặc chưa upload xong               | Upload lại                                                      |
 | `MUSIC_NOT_FOUND`       | 400  | `musicTrackId` không có trong thư viện                      | Bỏ nhạc, tải lại danh sách                                      |
+| `STORY_NOT_PINNED`      | 409  | Đổi chữ dưới story chưa ghim                                | Tải lại trang cá nhân                                           |
+| `MEMBERS_ONLY`          | 403  | Xem thành viên / hoạt động của cộng đồng khi chưa gia nhập  | Hộp "Chỉ dành cho thành viên" + nút Gia nhập                    |
 
 ---
 
@@ -1124,11 +1208,11 @@ D1 là SQLite nên **không có PostGIS, `unaccent`, `pg_trgm`**; cách thay th�
 - **Chống tranh slot khi join:** dùng `batch` của D1 (chạy nguyên khối) với `INSERT … SELECT … WHERE (SELECT COUNT(*) …) < capacity`, rồi kiểm tra số dòng được thêm.
 - **Index:** `activities (starts_at, ends_at)`, `activities (geohash)`, `activity_members (activity_id, user_id)` unique, `follows (follower_id, followee_id)` unique.
 - **Chat:** `chat_messages (activity_id, sent_at)` để phân trang theo `before`; `message_reactions (message_id, user_id)` unique (một cảm xúc / người); `chat_reads (user_id, activity_id)` unique giữ `last_read_at`. Số chưa đọc đếm theo index, hoặc để `ChatRoom` / `UserInbox` giữ bộ đếm.
-- **Story:** `stories (user_id, expires_at)`; feed lọc `expires_at > now` và quan hệ bạn bè; `story_views (story_id, viewer_id)` unique; overlay lưu dạng JSON (TEXT) trong `stories`. Cron xoá story hết hạn cùng file trên R2.
+- **Story:** `stories (user_id, expires_at)`; feed lọc `expires_at > now` và quan hệ bạn bè; `story_views (story_id, viewer_id)` unique; overlay lưu dạng JSON (TEXT) trong `stories`. Cron xoá story hết hạn và chưa ghim (`pinned_at IS NULL`) cùng file trên R2; `stories (user_id, pinned_at)` cho danh sách đã ghim.
 - **Vị trí:** chỉ giữ vị trí mới nhất mỗi user (`user_locations`) để tìm người rảnh gần đây; vị trí live khi đi hoạt động nằm trong `ActivityLive`, không ghi D1. Broadcast hết hạn thì xoá hoặc ẩn toạ độ.
 - **Giới hạn D1:** mỗi database tối đa 10 GB và chỉ một luồng ghi. Tin nhắn chat to nhanh nhất: nên để **chat ở một database D1 riêng**, và chuyển chat của hoạt động đã kết thúc lâu (vd > 90 ngày) sang R2 dạng JSON nếu cần (cần chốt).
 
-Bảng tối thiểu: `users`, `auth_identities`, `refresh_tokens`, `activities`, `activity_members`, `activity_saves`, `communities`, `community_members`, `broadcasts`, `custom_activities`, `follows`, `friend_requests`, `invites`, `user_locations`, `devices`, `notifications`, `uploads`, `chat_messages`, `chat_message_photos`, `chat_message_mentions`, `message_reactions`, `message_reports`, `chat_reads`, `chat_mutes`, `chat_clears`, `stories`, `story_views`, `story_replies`, `music_tracks`.
+Bảng tối thiểu: `users`, `auth_identities`, `refresh_tokens`, `activities`, `activity_members`, `activity_saves`, `communities`, `community_members`, `broadcasts`, `custom_activities`, `follows`, `friend_requests`, `invites`, `user_locations`, `devices`, `notifications`, `uploads`, `chats`, `chat_members`, `chat_messages`, `chat_message_photos`, `chat_message_mentions`, `message_reactions`, `message_reports`, `chat_reads`, `chat_mutes`, `chat_clears`, `stories`, `story_views`, `story_replies`, `music_tracks`.
 
 ### 13.2 R2 (media)
 

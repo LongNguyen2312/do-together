@@ -1,17 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  Text,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+import PullRefreshMark from '@/components/PullRefreshMark';
+import { usePullRefresh } from '@/hooks/usePullRefresh';
+import LogoLoader from '@/components/LogoLoader';
 import Equalizer from '@/components/Equalizer';
 import { fetchMusicTracks, playMusic, stopMusic } from '@/services/music';
 import { useTheme } from '@/theme';
@@ -70,6 +66,7 @@ export default function MusicSheet({
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [status, setStatus] = useState<Status>('loading');
   const [refreshing, setRefreshing] = useState(false);
+  const pullRefresh = usePullRefresh();
   const [previewId, setPreviewId] = useState<string | null>(null);
   const listRef = useRef<FlatList<MusicTrack>>(null);
   const selectedIndex = tracks.findIndex(track => track.id === selectedId);
@@ -272,7 +269,7 @@ export default function MusicSheet({
     >
       {status === 'loading' ? (
         <View style={styles.sheetState}>
-          <ActivityIndicator color={colors.primary} />
+          <LogoLoader color={colors.primary} />
         </View>
       ) : status === 'error' ? (
         <View style={styles.sheetState}>
@@ -288,38 +285,48 @@ export default function MusicSheet({
           </Pressable>
         </View>
       ) : (
-        <FlatList
-          ref={listRef}
-          data={tracks}
-          // Rows are only measured once drawn; all of them are, but just in case.
-          onScrollToIndexFailed={({ averageItemLength, index }) =>
-            listRef.current?.scrollToOffset({
-              offset: averageItemLength * index,
-              animated: true,
-            })
-          }
-          keyExtractor={track => track.id}
-          renderItem={renderTrack}
-          ListHeaderComponent={noneRow}
-          ListEmptyComponent={
-            <View style={styles.sheetState}>
-              <Text style={styles.sheetStateText}>
-                {t('storyEditor.musicEmpty')}
-              </Text>
-            </View>
-          }
-          contentContainerStyle={[
-            styles.musicList,
-            { paddingBottom: insets.bottom + ms(16) },
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={refresh}
-              tintColor={colors.primary}
-            />
-          }
-        />
+        // The list, with the pull-to-refresh mark over its top.
+        <View style={styles.flex}>
+          <FlatList
+            ref={listRef}
+            data={tracks}
+            // Rows are only measured once drawn; all of them are, but just in case.
+            onScrollToIndexFailed={({ averageItemLength, index }) =>
+              listRef.current?.scrollToOffset({
+                offset: averageItemLength * index,
+                animated: true,
+              })
+            }
+            keyExtractor={track => track.id}
+            renderItem={renderTrack}
+            ListHeaderComponent={noneRow}
+            ListEmptyComponent={
+              <View style={styles.sheetState}>
+                <Text style={styles.sheetStateText}>
+                  {t('storyEditor.musicEmpty')}
+                </Text>
+              </View>
+            }
+            contentContainerStyle={[
+              styles.musicList,
+              { paddingBottom: insets.bottom + ms(16) },
+            ]}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={refresh}
+                tintColor={pullRefresh.refreshTint(colors.primary)}
+              />
+            }
+            onScroll={pullRefresh.onScroll}
+            scrollEventThrottle={pullRefresh.scrollEventThrottle}
+          />
+          <PullRefreshMark
+            scrollY={pullRefresh.scrollY}
+            refreshing={refreshing}
+            color={colors.primary}
+          />
+        </View>
       )}
     </EditorSheet>
   );

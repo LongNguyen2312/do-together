@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+import PullRefreshMark from '@/components/PullRefreshMark';
+import { usePullRefresh } from '@/hooks/usePullRefresh';
 import PrimaryButton from '@/components/PrimaryButton';
 import ScreenHeader, { HeaderButton } from '@/components/ScreenHeader';
 import { closeSwipedRow } from '@/components/SwipeToDelete';
@@ -97,6 +99,7 @@ export default function NotificationsScreen({ navigation }: Props) {
     chips.center(id);
   };
   const [refreshing, setRefreshing] = useState(false);
+  const pullRefresh = usePullRefresh();
 
   const rows = useMemo<Row[]>(() => {
     const shown = notifications.filter(item =>
@@ -273,52 +276,62 @@ export default function NotificationsScreen({ navigation }: Props) {
         }
       />
 
-      <Animated.FlatList
-        data={rows}
-        keyExtractor={row => row.key}
-        // Rows below close the gap a deleted one leaves.
-        itemLayoutAnimation={LinearTransition.duration(220)}
-        renderItem={({ item: row }) =>
-          row.type === 'section' ? (
-            <Text style={styles.section} accessibilityRole="header">
-              {t(`notifications.sections.${row.section}`)}
-            </Text>
-          ) : (
-            <NotificationRow
-              item={row.item}
-              answer={answers[row.item.id]}
-              styles={styles}
-              onPress={open}
-              onAnswer={answer}
-              onDelete={remove}
+      {/* The list, with the pull-to-refresh mark over its top. */}
+      <View style={styles.listBox}>
+        <Animated.FlatList
+          data={rows}
+          keyExtractor={row => row.key}
+          // Rows below close the gap a deleted one leaves.
+          itemLayoutAnimation={LinearTransition.duration(220)}
+          renderItem={({ item: row }) =>
+            row.type === 'section' ? (
+              <Text style={styles.section} accessibilityRole="header">
+                {t(`notifications.sections.${row.section}`)}
+              </Text>
+            ) : (
+              <NotificationRow
+                item={row.item}
+                answer={answers[row.item.id]}
+                styles={styles}
+                onPress={open}
+                onAnswer={answer}
+                onDelete={remove}
+              />
+            )
+          }
+          ListHeaderComponent={header}
+          ListEmptyComponent={
+            notifications.length ? (
+              <FilterEmpty filter={filter} styles={styles} />
+            ) : (
+              <Empty
+                styles={styles}
+                onExplore={() =>
+                  navigation.navigate('Main', { screen: 'Discover' })
+                }
+              />
+            )
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={refresh}
+              tintColor={pullRefresh.refreshTint(colors.primary)}
+              colors={[colors.primary]}
             />
-          )
-        }
-        ListHeaderComponent={header}
-        ListEmptyComponent={
-          notifications.length ? (
-            <FilterEmpty filter={filter} styles={styles} />
-          ) : (
-            <Empty
-              styles={styles}
-              onExplore={() =>
-                navigation.navigate('Main', { screen: 'Discover' })
-              }
-            />
-          )
-        }
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={refresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-        contentContainerStyle={styles.list}
-        onScrollBeginDrag={closeSwipedRow}
-        showsVerticalScrollIndicator={false}
-      />
+          }
+          onScroll={pullRefresh.onScroll}
+          scrollEventThrottle={pullRefresh.scrollEventThrottle}
+          contentContainerStyle={styles.list}
+          onScrollBeginDrag={closeSwipedRow}
+          showsVerticalScrollIndicator={false}
+        />
+        <PullRefreshMark
+          scrollY={pullRefresh.scrollY}
+          refreshing={refreshing}
+          color={colors.primary}
+        />
+      </View>
     </SafeAreaView>
   );
 }

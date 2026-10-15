@@ -12,13 +12,15 @@ export const HEADER_BUTTON = ms(38);
 export const BARE_BUTTON = ms(32);
 /** A bare button's icon: room either side is (BARE_BUTTON - this) / 2. */
 export const BARE_ICON = ms(23);
+/** The icon in a round header button. */
+export const HEADER_ICON = ms(19);
 const SCREEN_PADDING = ms(16);
 /** Room kept clear on each side of the title, for up to two buttons. */
 const SIDE_BUTTONS = 2;
 
 interface HeaderButtonProps {
-  /** Ionicons name. */
-  icon: string;
+  /** Ionicons name, or an icon of another set (sized ICON_SIZE) to draw. */
+  icon: string | ReactNode;
   label: string;
   onPress: () => void;
   /** Defaults to the text colour. */
@@ -26,6 +28,8 @@ interface HeaderButtonProps {
   disabled?: boolean;
   /** Just the icon, a little bigger, with no round button behind it. */
   bare?: boolean;
+  /** The round button's width and height, if not HEADER_BUTTON. */
+  size?: number;
   /** On the icon alone, e.g. an animated swing. */
   iconStyle?: ComponentProps<typeof Animated.View>['style'];
   /** Over the button's corner, e.g. a count. */
@@ -40,6 +44,7 @@ export function HeaderButton({
   color,
   disabled = false,
   bare = false,
+  size,
   iconStyle,
   children,
 }: HeaderButtonProps) {
@@ -52,6 +57,8 @@ export function HeaderButton({
       hitSlop={6}
       style={({ pressed }) => [
         bare ? styles.bareButton : styles.button,
+        size !== undefined &&
+          !bare && { width: size, height: size, borderRadius: size / 2 },
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}
@@ -60,11 +67,15 @@ export function HeaderButton({
       accessibilityState={{ disabled }}
     >
       <Animated.View style={iconStyle}>
-        <Icon
-          name={icon}
-          size={bare ? BARE_ICON : ms(19)}
-          color={color ?? colors.text}
-        />
+        {typeof icon === 'string' ? (
+          <Icon
+            name={icon}
+            size={bare ? BARE_ICON : HEADER_ICON}
+            color={color ?? colors.text}
+          />
+        ) : (
+          icon
+        )}
       </Animated.View>
       {children}
     </Pressable>

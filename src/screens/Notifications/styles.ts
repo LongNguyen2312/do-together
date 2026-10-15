@@ -288,5 +288,8 @@ export function createStyles(colors: AppColors) {
     list: {
       paddingBottom: ms(32),
     },
+    listBox: {
+      flex: 1,
+    },
   });
 }

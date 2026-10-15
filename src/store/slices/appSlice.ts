@@ -3,6 +3,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { LanguageOption } from '@/types/language';
 import type { MapStyleId } from '@/types/map';
 import type { ThemeMode } from '@/types/theme';
+import { defaultMapStyle } from '@/utils/mapStyles';
 
 interface AppState {
   /**
@@ -16,7 +17,11 @@ interface AppState {
    */
   themeMode: ThemeMode | null;
   hasCompletedOnboarding: boolean;
-  /** null = follow the app theme until the user picks a style. */
+  /**
+   * null = follow the app theme. Picking the theme's own style (Liberty in
+   * light, Dark in dark) keeps it following; only Bright or Positron, or the
+   * other theme's style, stick.
+   */
   mapStyle: MapStyleId | null;
 }
 
@@ -36,6 +41,14 @@ const appSlice = createSlice({
     },
     setThemeMode: (state, action: PayloadAction<ThemeMode>) => {
       state.themeMode = action.payload;
+      // A theme's own map style follows the theme from now on: dark mode on,
+      // the map goes dark too.
+      if (
+        state.mapStyle === defaultMapStyle(true) ||
+        state.mapStyle === defaultMapStyle(false)
+      ) {
+        state.mapStyle = null;
+      }
     },
     completeOnboarding: state => {
       state.hasCompletedOnboarding = true;
@@ -44,7 +57,10 @@ const appSlice = createSlice({
       state.hasCompletedOnboarding = false;
     },
     setMapStyle: (state, action: PayloadAction<MapStyleId>) => {
-      state.mapStyle = action.payload;
+      // The theme's own style is the same as not picking one.
+      const isDark = state.themeMode === 'dark';
+      state.mapStyle =
+        action.payload === defaultMapStyle(isDark) ? null : action.payload;
     },
   },
 });

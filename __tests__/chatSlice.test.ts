@@ -1,10 +1,12 @@
 /**
- * Deleting a chat clears the user's copy and takes it off their list, until
- * someone sends a new message.
+ * Deleting a chat clears its messages and history on the user's side only:
+ * they stay in the group and see what's sent after. Leaving is separate.
  */
 import reducer, {
   addMessage,
   deleteChat,
+  leaveChat,
+  rejoinChat,
   threadIn,
   type ChatState,
 } from '@/store/slices/chatSlice';
@@ -16,25 +18,41 @@ const initial = reducer(undefined, { type: '@@init' }) as ChatState;
 const message: ChatMessage = {
   id: 'new',
   senderId: 'someone',
-  sentAt: Date.now(),
+  sentAt: Date.now() + 1000,
   text: 'Anyone up for tomorrow?',
 };
 
 describe('deleteChat', () => {
-  it('empties the thread and marks the chat deleted', () => {
+  it('empties the thread and remembers when, without leaving', () => {
     expect(threadIn(initial, ACTIVITY).length).toBeGreaterThan(0);
     const state = reducer(initial, deleteChat(ACTIVITY));
     expect(threadIn(state, ACTIVITY)).toEqual([]);
-    expect(state.deletedIds).toEqual([ACTIVITY]);
+    expect(state.clearedAt[ACTIVITY]).toBeGreaterThan(0);
+    expect(state.leftIds).toEqual([]);
   });
 
-  it('brings the chat back with its next message, and only that', () => {
-    const deleted = reducer(initial, deleteChat(ACTIVITY));
+  it('keeps the old messages gone after a restart (only the clear is kept)', () => {
+    const cleared = reducer(initial, deleteChat(ACTIVITY));
+    const restarted = { ...initial, clearedAt: cleared.clearedAt };
+    expect(threadIn(restarted, ACTIVITY)).toEqual([]);
+    // The same clear gives the same list, so selectors don't churn.
+    expect(threadIn(restarted, ACTIVITY)).toBe(threadIn(restarted, ACTIVITY));
+  });
+
+  it('shows what comes next', () => {
+    const cleared = reducer(initial, deleteChat(ACTIVITY));
     const state = reducer(
-      deleted,
+      cleared,
       addMessage({ activityId: ACTIVITY, message }),
     );
-    expect(state.deletedIds).toEqual([]);
     expect(threadIn(state, ACTIVITY)).toEqual([message]);
+  });
+});
+
+describe('leaveChat', () => {
+  it('leaves until rejoined', () => {
+    const left = reducer(initial, leaveChat(ACTIVITY));
+    expect(left.leftIds).toEqual([ACTIVITY]);
+    expect(reducer(left, rejoinChat(ACTIVITY)).leftIds).toEqual([]);
   });
 });

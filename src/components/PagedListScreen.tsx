@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -14,6 +13,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+import PullRefreshMark from '@/components/PullRefreshMark';
+import { usePullRefresh } from '@/hooks/usePullRefresh';
+import LogoLoader from '@/components/LogoLoader';
 import type { PagedList } from '@/hooks/usePagedList';
 import { fonts, fs, useTheme, type AppColors } from '@/theme';
 
@@ -46,13 +48,14 @@ export default function PagedListScreen<T>({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
+  const pullRefresh = usePullRefresh();
   const { items, loading, failed } = list;
 
   const footer = () => {
     if (loading === 'more') {
       return (
         <View style={styles.footer}>
-          <ActivityIndicator color={colors.primary} />
+          <LogoLoader color={colors.primary} />
         </View>
       );
     }
@@ -73,7 +76,7 @@ export default function PagedListScreen<T>({
   const empty = () => (
     <View style={styles.center}>
       {loading === 'initial' ? (
-        <ActivityIndicator color={colors.primary} />
+        <LogoLoader color={colors.primary} />
       ) : (
         <Text style={styles.message}>
           {failed ? t('discover.loadFailed') : emptyText}
@@ -109,35 +112,48 @@ export default function PagedListScreen<T>({
         </View>
       </View>
 
-      <FlatList
-        data={items}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        extraData={extraData}
-        contentContainerStyle={[
-          styles.list,
-          { gap: itemGap, paddingBottom: insets.bottom + ms(16) },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={loading === 'refresh'}
-            onRefresh={list.refresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-        onEndReached={list.loadMore}
-        onEndReachedThreshold={0.4}
-        ListFooterComponent={footer}
-        ListEmptyComponent={empty}
-      />
+      {/* The list, with the pull-to-refresh mark over its top. */}
+      <View style={styles.listBox}>
+        <FlatList
+          data={items}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          extraData={extraData}
+          contentContainerStyle={[
+            styles.list,
+            { gap: itemGap, paddingBottom: insets.bottom + ms(16) },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading === 'refresh'}
+              onRefresh={list.refresh}
+              tintColor={pullRefresh.refreshTint(colors.primary)}
+              colors={[colors.primary]}
+            />
+          }
+          onScroll={pullRefresh.onScroll}
+          scrollEventThrottle={pullRefresh.scrollEventThrottle}
+          onEndReached={list.loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={footer}
+          ListEmptyComponent={empty}
+        />
+        <PullRefreshMark
+          scrollY={pullRefresh.scrollY}
+          refreshing={loading === 'refresh'}
+          color={colors.primary}
+        />
+      </View>
     </View>
   );
 }
 
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
+    listBox: {
+      flex: 1,
+    },
     root: {
       flex: 1,
       backgroundColor: colors.background,

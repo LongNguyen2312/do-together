@@ -295,7 +295,8 @@
     "members": "{{count}} members",
     "joinGroup": "Join",
     "joinedGroup": "Joined",
-    "empty": "Nothing matches your search yet."
+    "empty": "Nothing matches your search yet.",
+    "openGroupChat": "Open group chat"
   },
   "tabs": {
     "home": "Home",
@@ -308,7 +309,9 @@
     "filters": {
       "all": "All",
       "unread": "Unread",
-      "group": "Groups"
+      "personal": "Personal",
+      "activity": "Activity groups",
+      "community": "Community groups"
     },
     "now": "Now",
     "minutesAgo_one": "{{count}} min",
@@ -317,11 +320,17 @@
     "empty": "Join an activity to chat with its group.",
     "noMatch": "No chats match.",
     "delete": "Delete",
-    "deleteTitle": "Delete this chat?",
-    "deleteMessage": "Its messages are cleared for you only. The chat comes back when someone sends a new message.",
-    "deleteHint": "Swipe left to delete"
+    "deleteTitle": "Delete chat history?",
+    "deleteMessage": "Messages and history are deleted for you only. You stay in the group and still get new messages.",
+    "deleteHint": "Swipe left to delete the chat history",
+    "noPersonal": "Messages with friends will show here."
   },
   "stories": {
+    "pinnedLabel": "Pinned to profile",
+    "pin": "Pin to profile",
+    "unpin": "Unpin from profile",
+    "pinned": "Pinned to your profile",
+    "unpinned": "Unpinned from your profile",
     "addTitle": "Add to your story",
     "add": "Add story",
     "yourStory": "Your story",
@@ -414,7 +423,13 @@
       "notifications": "Message notifications",
       "notificationsOn": "Get notified about new messages",
       "notificationsOff": "Off, new messages are still counted",
-      "viewActivity": "View activity details"
+      "viewActivity": "View activity details",
+      "community": "Community • {{count}} members",
+      "leave": "Leave group",
+      "leaveTitle": "Leave this group?",
+      "leaveCommunityMessage": "You'll leave \"{{name}}\" and stop getting its messages. You can join again any time.",
+      "leaveActivityMessage": "The chat will be removed from your list and you'll stop getting its messages. You'll still be in the activity.",
+      "viewCommunity": "View community"
     },
     "endedNotice": "This activity has ended. You can still read the messages.",
     "cameraUnavailable": "The camera isn't available on this device."
@@ -531,7 +546,17 @@
     "findBuddies": "Find {{activity}} buddies nearby",
     "broadcasting": "Broadcasting...",
     "broadcastTitle": "You're live!",
-    "broadcastMessage": "We'll let you know as soon as someone nearby wants to do {{activity}} with you."
+    "broadcastMessage": "We'll let you know as soon as someone nearby wants to do {{activity}} with you.",
+    "photo": {
+      "title": "Photo",
+      "limit": "Up to 1 photo",
+      "add": "Add a photo",
+      "change": "Change",
+      "remove": "Remove photo",
+      "errorTitle": "Couldn't open the photo",
+      "previewPhoto": "This photo will be your signal's picture",
+      "previewActivity": "No photo: the activity's picture is used"
+    }
   },
   "storyCamera": {
     "photo": "Photo",
@@ -737,5 +762,147 @@
       },
       "chatNote": "New messages are turned on or off for each group, in its group info."
     }
+  },
+  "profile": {
+    "addBio": "About you",
+    "pinned": {
+      "title": "Title under the story",
+      "placeholder": "No title",
+      "hint": "Say something about your story",
+      "clear": "Clear"
+    },
+    "avatar": {
+      "viewStory": "View story",
+      "viewPhoto": "View profile photo",
+      "changePhoto": "Change profile photo",
+      "withStory": "Profile photo, story up"
+    },
+    "age_one": "{{count}} year old",
+    "age_other": "{{count}} years old",
+    "relation": {
+      "friends": "Friends",
+      "unfollow": "Unfollow",
+      "friendOptions": "Opens options: follow, unfriend",
+      "unfriend": "Unfriend",
+      "unfriendTitle": "Unfriend?",
+      "unfriendMessage": "You and {{name}} won't be friends anymore. You can send a friend request again later."
+    },
+    "common": {
+      "title": "In common:",
+      "interests": "you both like {{list}}",
+      "activities_one": "{{count}} activity together",
+      "activities_other": "{{count}} activities together"
+    },
+    "emptyOther": {
+      "joined": "{{name}} hasn't finished any activities yet.",
+      "story": "{{name}} has no stories up."
+    },
+    "people": {
+      "friends": "Friends ({{count}})",
+      "followers": "Followers ({{count}})",
+      "friendBadge": "Friend",
+      "emptyFriends": "You have no friends here yet.",
+      "emptyFollowers": "No one follows you yet."
+    },
+    "addStory": "Add to story",
+    "editProfileButton": "Edit profile",
+    "addInterests": "Add interests",
+    "friendsInCommon": "Friends in common",
+    "inCommon": {
+      "title": "Friends in common",
+      "count_one": "{{count}} friend who likes what you like",
+      "count_other": "{{count}} friends who like what you like",
+      "shared_one": "{{count}} interest in common",
+      "shared_other": "{{count}} interests in common",
+      "empty": "None of your friends share your interests yet."
+    },
+    "editProfile": "Edit profile",
+    "changePhoto": "Change profile photo",
+    "photoError": "Couldn't open that photo. Try again.",
+    "now": "Happening now",
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "notificationsPaused": "Paused",
+    "language": "Language",
+    "darkMode": "Dark mode",
+    "logOut": "Log out",
+    "logOutTitle": "Log out of DoTogether?",
+    "logOutMessage": "You can log back in any time.",
+    "edit": {
+      "title": "Edit profile",
+      "changePhoto": "Change profile photo",
+      "name": "Display name",
+      "namePlaceholder": "Your name",
+      "nameRequired": "Add a name so people know it's you",
+      "bio": "About you",
+      "bioPlaceholder": "E.g. Morning runs around West Lake, salted coffee after",
+      "interests": "Interests",
+      "interestsHint": "What you'd most like to do with others.",
+      "discardTitle": "Discard your changes?",
+      "discardMessage": "What you've just changed won't be saved.",
+      "discard": "Discard",
+      "keepEditing": "Keep editing",
+      "otherInterest": "Something else",
+      "otherInterestPlaceholder": "e.g. Climbing",
+      "newInterestTitle": "Add your own interest",
+      "newInterestName": "Interest",
+      "newInterestSave": "Save interest",
+      "forgetInterest": "Delete",
+      "forgetInterestTitle": "Delete this interest?",
+      "forgetInterestMessage": "\"{{interest}}\" will be removed from your interests.",
+      "forgetInterestHint": "Tap to pick or unpick, long press to delete"
+    },
+    "newStory": "New story",
+    "tabs": {
+      "joined": "Joined",
+      "saved": "Saved",
+      "story": "Story"
+    },
+    "empty": {
+      "joined": "Activities you join show up here once they're over.",
+      "saved": "Activities you save show up here.",
+      "story": "Stories you post show up here while they're up."
+    },
+    "friendCount_one": "{{count}} friend",
+    "friendCount_other": "{{count}} friends",
+    "followerCount_one": "{{count}} follower",
+    "followerCount_other": "{{count}} followers",
+    "activityCount_one": "{{count}} activity",
+    "activityCount_other": "{{count}} activities",
+    "places": {
+      "title": "Places",
+      "currentCity": "Current city",
+      "hometown": "Hometown",
+      "addCurrentCity": "Add where you live",
+      "addHometown": "Add your hometown",
+      "livesIn": "Lives in <b>{{place}}</b>",
+      "from": "From <b>{{place}}</b>",
+      "searchPlaceholder": "Search provinces and cities",
+      "noResults": "No places found.",
+      "clear": "Clear",
+      "kind": {
+        "city": "City",
+        "province": "Province"
+      }
+    }
+  },
+  "community": {
+    "title": "Community",
+    "join": "Join community",
+    "joined": "Joined",
+    "leave": "Leave community",
+    "leaveTitle": "Leave this community?",
+    "about": "About",
+    "schedule": "When & where",
+    "members": "Members",
+    "seeAll": "See all",
+    "upcoming": "Coming up",
+    "noUpcoming": "Nothing coming up yet.",
+    "liveNow": "Happening now",
+    "friendsHere": "Your friends here: {{names}}",
+    "friendsHereMore_one": "{{names}} and {{count}} more friend are here",
+    "friendsHereMore_other": "{{names}} and {{count}} more friends are here",
+    "membersOnlyTitle": "Members only",
+    "membersOnlyMessage": "Join \"{{name}}\" to see its members and what's coming up."
   }
 }

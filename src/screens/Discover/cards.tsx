@@ -502,6 +502,11 @@ export const ActivityCard = memo(function ActivityCardView(
         </View>
       </View>
 
+      {/* The photo the host posted, if any: under what it's about. */}
+      {activity.photo ? (
+        <Image source={activity.photo} style={styles.cardPhoto} />
+      ) : null}
+
       <View style={styles.cardBottom}>
         <View style={styles.cardMeta}>
           <Participants activity={activity} styles={styles} />
@@ -521,23 +526,34 @@ export const ActivityCard = memo(function ActivityCardView(
   );
 });
 
+/** A community: joining it, or once joined, opening its group chat. */
 export const CommunityRow = memo(function CommunityRowView({
   community,
   joined,
   styles,
-  onToggle,
+  onJoin,
+  onOpenChat,
+  onOpen,
 }: {
   community: Community;
   joined: boolean;
   styles: DiscoverStyles;
-  onToggle: (communityId: string) => void;
+  onJoin: (communityId: string) => void;
+  onOpenChat: (communityId: string) => void;
+  /** Its page. */
+  onOpen: (communityId: string) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const tone = toneColors(community.tone, colors);
 
   return (
-    <View style={styles.communityRow}>
+    <Pressable
+      onPress={() => onOpen(community.id)}
+      style={({ pressed }) => [styles.communityRow, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={community.name}
+    >
       <View
         style={[styles.communityIcon, { backgroundColor: tone.background }]}
       >
@@ -554,21 +570,27 @@ export const CommunityRow = memo(function CommunityRowView({
         </Text>
       </View>
       <Pressable
-        onPress={() => onToggle(community.id)}
+        onPress={() =>
+          joined ? onOpenChat(community.id) : onJoin(community.id)
+        }
         style={({ pressed }) => [
-          joined ? styles.joinedButton : styles.secondaryButton,
+          joined ? styles.openChatButton : styles.secondaryButton,
           pressed && styles.pressed,
         ]}
         accessibilityRole="button"
       >
         {joined ? (
-          <Icon name="checkmark-circle" size={ms(14)} color={colors.white} />
+          <Icon
+            name="chatbubbles-outline"
+            size={ms(14)}
+            color={colors.primaryDark}
+          />
         ) : null}
-        <Text style={joined ? styles.joinedText : styles.secondaryText}>
-          {joined ? t('discover.joinedGroup') : t('discover.joinGroup')}
+        <Text style={joined ? styles.openChatText : styles.secondaryText}>
+          {joined ? t('discover.openGroupChat') : t('discover.joinGroup')}
         </Text>
       </Pressable>
-    </View>
+    </Pressable>
   );
 });
 

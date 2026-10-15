@@ -10,12 +10,21 @@ interface StoryState {
   seenIds: string[];
   /** Replies and reactions the user sent, until there are direct messages. */
   replies: StoryReply[];
+  /**
+   * The user's own stories pinned to their profile, in the order pinned;
+   * they stay there after the day is up.
+   */
+  pinnedIds: string[];
+  /** What shows under a pinned story on the profile; '' is nothing, none its day. */
+  pinnedTitles: Record<string, string>;
 }
 
 const initialState: StoryState = {
   mine: [],
   seenIds: [],
   replies: [],
+  pinnedIds: [],
+  pinnedTitles: {},
 };
 
 const storySlice = createSlice({
@@ -35,6 +44,24 @@ const storySlice = createSlice({
     },
     deleteStory: (state, action: PayloadAction<string>) => {
       state.mine = state.mine.filter(story => story.id !== action.payload);
+      state.pinnedIds = state.pinnedIds.filter(id => id !== action.payload);
+      delete state.pinnedTitles[action.payload];
+    },
+    togglePinStory: (state, action: PayloadAction<string>) => {
+      if (state.pinnedIds.includes(action.payload)) {
+        state.pinnedIds = state.pinnedIds.filter(id => id !== action.payload);
+        delete state.pinnedTitles[action.payload];
+      } else {
+        state.pinnedIds.push(action.payload);
+      }
+    },
+    setPinnedTitle: (
+      state,
+      action: PayloadAction<{ id: string; title: string }>,
+    ) => {
+      if (state.pinnedIds.includes(action.payload.id)) {
+        state.pinnedTitles[action.payload.id] = action.payload.title;
+      }
     },
     markStorySeen: (state, action: PayloadAction<string>) => {
       if (!state.seenIds.includes(action.payload)) {
@@ -57,6 +84,12 @@ const storySlice = createSlice({
   },
 });
 
-export const { postStory, deleteStory, markStorySeen, replyToStory } =
-  storySlice.actions;
+export const {
+  postStory,
+  deleteStory,
+  togglePinStory,
+  setPinnedTitle,
+  markStorySeen,
+  replyToStory,
+} = storySlice.actions;
 export default storySlice.reducer;

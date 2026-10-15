@@ -82,7 +82,7 @@ export default function StoryFace({
   const myName = useAppSelector(state => state.auth.user?.displayName);
   const story = stories[index];
   const author = userId === ME ? undefined : getUser(userId);
-  // The user's own stories have no message field under them.
+  // Room underneath for the message field, or the pin button on their own.
   const canvas = useStoryCanvas(footer != null);
 
   return (
