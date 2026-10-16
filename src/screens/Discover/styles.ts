@@ -328,12 +328,6 @@ export function createStyles(colors: AppColors) {
       gap: ms(10),
       padding: ms(14),
     },
-    cardPhoto: {
-      width: '100%',
-      height: ms(132),
-      borderRadius: ms(12),
-      backgroundColor: colors.surfaceHigh,
-    },
     featuredCard: {
       ...card,
     },

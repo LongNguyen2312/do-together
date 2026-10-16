@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -66,7 +68,6 @@ export default function MusicSheet({
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
   const [status, setStatus] = useState<Status>('loading');
   const [refreshing, setRefreshing] = useState(false);
-  const pullRefresh = usePullRefresh();
   const [previewId, setPreviewId] = useState<string | null>(null);
   const listRef = useRef<FlatList<MusicTrack>>(null);
   const selectedIndex = tracks.findIndex(track => track.id === selectedId);
@@ -110,6 +111,10 @@ export default function MusicSheet({
     await load(true);
     setRefreshing(false);
   };
+  const pullRefresh = usePullRefresh({
+    refreshing: refreshing,
+    onRefresh: refresh,
+  });
 
   const retry = () => {
     setStatus('loading');
@@ -269,7 +274,7 @@ export default function MusicSheet({
     >
       {status === 'loading' ? (
         <View style={styles.sheetState}>
-          <LogoLoader color={colors.primary} />
+          <LogoLoader color={colors.primary} size="large" />
         </View>
       ) : status === 'error' ? (
         <View style={styles.sheetState}>
@@ -287,44 +292,51 @@ export default function MusicSheet({
       ) : (
         // The list, with the pull-to-refresh mark over its top.
         <View style={styles.flex}>
-          <FlatList
-            ref={listRef}
-            data={tracks}
-            // Rows are only measured once drawn; all of them are, but just in case.
-            onScrollToIndexFailed={({ averageItemLength, index }) =>
-              listRef.current?.scrollToOffset({
-                offset: averageItemLength * index,
-                animated: true,
-              })
-            }
-            keyExtractor={track => track.id}
-            renderItem={renderTrack}
-            ListHeaderComponent={noneRow}
-            ListEmptyComponent={
-              <View style={styles.sheetState}>
-                <Text style={styles.sheetStateText}>
-                  {t('storyEditor.musicEmpty')}
-                </Text>
-              </View>
-            }
-            contentContainerStyle={[
-              styles.musicList,
-              { paddingBottom: insets.bottom + ms(16) },
-            ]}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={refresh}
-                tintColor={pullRefresh.refreshTint(colors.primary)}
+          {/* Pulled down (Android: by this gesture) to refresh. */}
+          <GestureDetector gesture={pullRefresh.gesture}>
+            <Animated.View style={pullRefresh.boxStyle}>
+              <FlatList
+                ref={listRef}
+                data={tracks}
+                // Rows are only measured once drawn; all of them are, but just in case.
+                onScrollToIndexFailed={({ averageItemLength, index }) =>
+                  listRef.current?.scrollToOffset({
+                    offset: averageItemLength * index,
+                    animated: true,
+                  })
+                }
+                keyExtractor={track => track.id}
+                renderItem={renderTrack}
+                ListHeaderComponent={noneRow}
+                ListEmptyComponent={
+                  <View style={styles.sheetState}>
+                    <Text style={styles.sheetStateText}>
+                      {t('storyEditor.musicEmpty')}
+                    </Text>
+                  </View>
+                }
+                contentContainerStyle={[
+                  styles.musicList,
+                  { paddingBottom: insets.bottom + ms(16) },
+                ]}
+                refreshControl={
+                  pullRefresh.native ? (
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={refresh}
+                      tintColor={pullRefresh.tint}
+                    />
+                  ) : undefined
+                }
+                onScroll={pullRefresh.onScroll}
+                scrollEventThrottle={pullRefresh.scrollEventThrottle}
               />
-            }
-            onScroll={pullRefresh.onScroll}
-            scrollEventThrottle={pullRefresh.scrollEventThrottle}
-          />
+            </Animated.View>
+          </GestureDetector>
           <PullRefreshMark
-            scrollY={pullRefresh.scrollY}
+            pull={pullRefresh.pull}
             refreshing={refreshing}
-            color={colors.primary}
+            color={colors.textMuted}
           />
         </View>
       )}

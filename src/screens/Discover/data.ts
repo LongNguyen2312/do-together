@@ -23,9 +23,11 @@ export const COMMUNITY_PREVIEW_COUNT = 3;
 export const MAX_AVATARS = 3;
 
 /** Soonest first; ones already running live on Home's "happening now". */
-export const UPCOMING_ACTIVITIES = ACTIVITIES.filter(
-  activity => activityStatus(activity) === 'upcoming' && isBrowsable(activity),
-).sort((a, b) => a.startsInMinutes - b.startsInMinutes);
+export const upcomingActivities = () =>
+  ACTIVITIES.filter(
+    activity =>
+      activityStatus(activity) === 'upcoming' && isBrowsable(activity),
+  ).sort((a, b) => a.startsInMinutes - b.startsInMinutes);
 
 export const NEARBY_RADIUS_KM = 2;
 

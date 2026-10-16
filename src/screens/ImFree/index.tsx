@@ -25,13 +25,14 @@ import PrimaryButton from '@/components/PrimaryButton';
 import ScreenHeader from '@/components/ScreenHeader';
 import PulseDot from '@/components/PulseDot';
 import RangeSlider from '@/components/RangeSlider';
-import { compressPhoto } from '@/services/media';
+import { compressPhotoToDataUri } from '@/services/media';
 import { CATEGORY_EMOJI, freeUsersWithin } from '@/services/mockData';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   removeCustomActivity,
   saveCustomActivity,
 } from '@/store/slices/broadcastSlice';
+import { createActivity } from '@/store/slices/activitySlice';
 import { useTheme } from '@/theme';
 import type {
   BroadcastActivityId,
@@ -54,6 +55,40 @@ import {
 } from './data';
 import { createStyles } from './styles';
 import TimePickerSheet from './TimePickerSheet';
+
+/** Kept with the activity on the device: small enough for that. */
+const ACTIVITY_PHOTO_SIZE = 1000;
+
+const DURATION_MINUTES: Record<BroadcastDuration, number> = {
+  '30m': 30,
+  '1h': 60,
+  '2h': 120,
+  '3h': 180,
+};
+/** "Tonight" starts at this hour. */
+const TONIGHT_HOUR = 19;
+
+/** When the activity starts, as picked: now, in half an hour, tonight or a set time. */
+function startTime(
+  when: BroadcastWhen,
+  custom: BroadcastTime | null,
+  now: Date,
+): number {
+  if (when === 'in30') {
+    return now.getTime() + 30 * 60 * 1000;
+  }
+  if (when === 'tonight' || (when === 'custom' && custom)) {
+    const at = new Date(now);
+    if (when === 'custom' && custom) {
+      at.setDate(at.getDate() + (custom.day === 'tomorrow' ? 1 : 0));
+      at.setHours(custom.hour, custom.minute, 0, 0);
+    } else {
+      at.setHours(TONIGHT_HOUR, 0, 0, 0);
+    }
+    return Math.max(at.getTime(), now.getTime());
+  }
+  return now.getTime();
+}
 
 /** Simulated broadcast round-trip until the API exists. */
 const BROADCAST_MS = 1100;
@@ -168,7 +203,8 @@ export default function ImFreeScreen({ navigation }: Props) {
     }
     setPhotoLoading(true);
     try {
-      setPhoto(await compressPhoto(uri));
+      // Kept with the activity on the device, so as a small data: uri.
+      setPhoto(await compressPhotoToDataUri(uri, ACTIVITY_PHOTO_SIZE));
     } catch {
       Alert.alert(t('imFree.photo.errorTitle'));
     } finally {
@@ -190,15 +226,39 @@ export default function ImFreeScreen({ navigation }: Props) {
     </View>
   );
 
+  // Sending the signal makes an activity of it, the user's own, listed for
+  // others on Home and Discover with its photo, and opens it.
   const onBroadcast = () => {
     Keyboard.dismiss();
     setBroadcasting(true);
     setTimeout(() => {
+      const now = Date.now();
+      const id = `mine-${now}`;
+      dispatch(
+        createActivity({
+          id,
+          createdAt: now,
+          startsAt: startTime(when, customTime, new Date(now)),
+          durationMinutes: DURATION_MINUTES[duration],
+          category: activity,
+          title: activityLabel,
+          tag: `${activityLabel} • ${t(`imFree.durations.${duration}`)}`,
+          note: note.trim(),
+          photo: photo ?? undefined,
+          radiusKm: radius,
+        }),
+      );
       setBroadcasting(false);
       Alert.alert(
         t('imFree.broadcastTitle'),
         t('imFree.broadcastMessage', { activity: activityLabel }),
-        [{ text: t('common.ok'), onPress: navigation.goBack }],
+        [
+          {
+            text: t('common.ok'),
+            onPress: () =>
+              navigation.replace('ActivityDetail', { activityId: id }),
+          },
+        ],
       );
     }, BROADCAST_MS);
   };

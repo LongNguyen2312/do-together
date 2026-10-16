@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -73,10 +75,14 @@ export default function MediaGalleryScreen({ navigation, route }: Props) {
   /** Null for the whole library. */
   const [album, setAlbum] = useState<GalleryAlbum | null>(null);
   const [choosingAlbum, setChoosingAlbum] = useState(false);
-  const pullRefresh = usePullRefresh();
   const { access, assets, refreshing, refresh, loadMore, allow } =
     useGallery(album);
   const readable = access === 'granted' || access === 'limited';
+  const pullRefresh = usePullRefresh({
+    refreshing,
+    // Only once photos can be read.
+    onRefresh: () => readable && refresh(),
+  });
   const storyPick = usePickMedia();
   const chatPick = useChatPick();
   /** The camera or the system picker is handing something over. */
@@ -277,7 +283,7 @@ export default function MediaGalleryScreen({ navigation, route }: Props) {
       </View>
     ) : assets === null ? (
       <View style={styles.footer}>
-        <LogoLoader color={colors.white} />
+        <LogoLoader color={colors.white} size="large" />
       </View>
     ) : !assets.length ? (
       <View style={styles.footer}>
@@ -356,42 +362,47 @@ export default function MediaGalleryScreen({ navigation, route }: Props) {
       ) : (
         // The grid, with the pull-to-refresh mark over its top.
         <View style={styles.flex}>
-          <FlatList<Tile>
-            data={data}
-            extraData={chosen}
-            keyExtractor={item => (item === CAMERA ? CAMERA : item.uri)}
-            renderItem={renderItem}
-            numColumns={GRID_COLUMNS}
-            columnWrapperStyle={styles.row}
-            ListHeaderComponent={limitedNotice}
-            ListFooterComponent={footer}
-            contentContainerStyle={{
-              // Clear of the send bar, when there is one.
-              paddingBottom: insets.bottom + (chosen.length ? ms(72) : 0),
-            }}
-            onEndReached={loadMore}
-            onEndReachedThreshold={1.5}
-            refreshControl={
-              readable ? (
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={refresh}
-                  tintColor={pullRefresh.refreshTint(colors.white)}
-                />
-              ) : undefined
-            }
-            onScroll={pullRefresh.onScroll}
-            scrollEventThrottle={pullRefresh.scrollEventThrottle}
-            // Thumbnails are cheap, but there can be thousands: keep few mounted.
-            initialNumToRender={18}
-            maxToRenderPerBatch={18}
-            windowSize={7}
-            removeClippedSubviews
-          />
+          {/* Pulled down (Android: by this gesture) to refresh. */}
+          <GestureDetector gesture={pullRefresh.gesture}>
+            <Animated.View style={pullRefresh.boxStyle}>
+              <FlatList<Tile>
+                data={data}
+                extraData={chosen}
+                keyExtractor={item => (item === CAMERA ? CAMERA : item.uri)}
+                renderItem={renderItem}
+                numColumns={GRID_COLUMNS}
+                columnWrapperStyle={styles.row}
+                ListHeaderComponent={limitedNotice}
+                ListFooterComponent={footer}
+                contentContainerStyle={{
+                  // Clear of the send bar, when there is one.
+                  paddingBottom: insets.bottom + (chosen.length ? ms(72) : 0),
+                }}
+                onEndReached={loadMore}
+                onEndReachedThreshold={1.5}
+                refreshControl={
+                  readable && pullRefresh.native ? (
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={refresh}
+                      tintColor={pullRefresh.tint}
+                    />
+                  ) : undefined
+                }
+                onScroll={pullRefresh.onScroll}
+                scrollEventThrottle={pullRefresh.scrollEventThrottle}
+                // Thumbnails are cheap, but there can be thousands: keep few mounted.
+                initialNumToRender={18}
+                maxToRenderPerBatch={18}
+                windowSize={7}
+                removeClippedSubviews
+              />
+            </Animated.View>
+          </GestureDetector>
           <PullRefreshMark
-            scrollY={pullRefresh.scrollY}
+            pull={pullRefresh.pull}
             refreshing={refreshing}
-            color={colors.white}
+            color={colors.textMuted}
           />
         </View>
       )}

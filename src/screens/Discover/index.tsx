@@ -25,6 +25,7 @@ import {
   isBrowsable,
   isJoined,
 } from '@/services/mockData';
+import { useActivitiesVersion } from '@/hooks/useActivities';
 import { useCommunityActions } from '@/hooks/useCommunity';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useJoinActivity } from '@/hooks/useJoinActivity';
@@ -34,19 +35,13 @@ import { useTheme } from '@/theme';
 import type { MainTabParamList, RootStackParamList } from '@/types/navigation';
 import { normalizeSearch } from '@/utils/format';
 
-import {
-  ActivityCard,
-  CommunityRow,
-  FeaturedActivityCard,
-  FreePersonCard,
-  InviteButton,
-} from './cards';
+import { cardFor, CommunityRow, FreePersonCard, InviteButton } from './cards';
 import {
   COMMUNITY_PREVIEW_COUNT,
   DISCOVER_CATEGORIES,
   FREE_PEOPLE,
   HOT_PREVIEW_COUNT,
-  UPCOMING_ACTIVITIES,
+  upcomingActivities,
   type DiscoverCategory,
 } from './data';
 import { createStyles } from './styles';
@@ -101,6 +96,13 @@ export default function DiscoverScreen({ navigation }: Props) {
   const categoryLabel = (value: DiscoverCategory) =>
     t(`imFree.activities.${value}`);
 
+  // Again when the user makes an activity.
+  const activitiesVersion = useActivitiesVersion();
+  const upcoming = useMemo(
+    () => upcomingActivities(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activitiesVersion],
+  );
   // While searching, only activities whose name matches are listed.
   const searchResults = searching
     ? ACTIVITIES.filter(
@@ -117,7 +119,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       );
   const hotActivities = searching
     ? []
-    : UPCOMING_ACTIVITIES.filter(activity => inCategory(activity.category));
+    : upcoming.filter(activity => inCategory(activity.category));
   const communities = searching
     ? []
     : COMMUNITIES.filter(community => inCategory(community.category));
@@ -252,16 +254,19 @@ export default function DiscoverScreen({ navigation }: Props) {
               </Text>
             </View>
             <View style={styles.sectionList}>
-              {searchResults.map(activity => (
-                <ActivityCard
-                  key={activity.id}
-                  activity={activity}
-                  joined={isJoined(activity, joinedIds)}
-                  styles={styles}
-                  onOpen={openActivity}
-                  onJoin={join}
-                />
-              ))}
+              {searchResults.map(activity => {
+                const Card = cardFor(activity);
+                return (
+                  <Card
+                    key={activity.id}
+                    activity={activity}
+                    joined={isJoined(activity, joinedIds)}
+                    styles={styles}
+                    onOpen={openActivity}
+                    onJoin={join}
+                  />
+                );
+              })}
             </View>
           </View>
         ) : null}
@@ -328,24 +333,19 @@ export default function DiscoverScreen({ navigation }: Props) {
               />
             </View>
             <View style={styles.sectionList}>
-              {hotActivities
-                .slice(0, HOT_PREVIEW_COUNT)
-                .map((activity, index) => {
-                  const Card =
-                    index === 0 && activity.cover
-                      ? FeaturedActivityCard
-                      : ActivityCard;
-                  return (
-                    <Card
-                      key={activity.id}
-                      activity={activity}
-                      joined={isJoined(activity, joinedIds)}
-                      styles={styles}
-                      onOpen={openActivity}
-                      onJoin={join}
-                    />
-                  );
-                })}
+              {hotActivities.slice(0, HOT_PREVIEW_COUNT).map(activity => {
+                const Card = cardFor(activity);
+                return (
+                  <Card
+                    key={activity.id}
+                    activity={activity}
+                    joined={isJoined(activity, joinedIds)}
+                    styles={styles}
+                    onOpen={openActivity}
+                    onJoin={join}
+                  />
+                );
+              })}
             </View>
           </View>
         ) : null}

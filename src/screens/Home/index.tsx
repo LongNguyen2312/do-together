@@ -1,5 +1,4 @@
 import {
-  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -55,6 +54,9 @@ import AppHeader from '@/components/AppHeader';
 import BottomSheet from '@/components/BottomSheet';
 import { useTabBarInset } from '@/components/LiquidTabBar';
 import PulseDot from '@/components/PulseDot';
+import { cardFor } from '@/screens/Discover/cards';
+import { createStyles as createCardStyles } from '@/screens/Discover/styles';
+import { useActivitiesVersion } from '@/hooks/useActivities';
 import { useCompassHeading } from '@/hooks/useCompassHeading';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useJoinActivity } from '@/hooks/useJoinActivity';
@@ -79,7 +81,6 @@ import {
   isJoined,
 } from '@/services/mockData';
 import type { Activity } from '@/types/activity';
-import { clockIn, formatDistance } from '@/utils/format';
 
 import {
   CATEGORY_IDS,
@@ -119,12 +120,14 @@ const MIN_COURSE_SPEED = 0.5;
 const ROTATION_RANGE = 36000;
 /** Roughly 5 km; farther positions would zoom the overview out too much. */
 const NEARBY_DEGREES = 0.05;
-/** Completed and full activities never appear on Home. */
-const BROWSABLE = ACTIVITIES.filter(isBrowsable);
-const SPOTS: LngLat[] = BROWSABLE.map(activity => activity.coordinate);
+/**
+ * Completed and full activities never appear on Home. The map's frame is
+ * set by the activities there at the start (the user's own sit among them).
+ */
+const browsable = () => ACTIVITIES.filter(isBrowsable);
+const SPOTS: LngLat[] = browsable().map(activity => activity.coordinate);
 const SPOTS_BOUNDS = boundsOf(SPOTS);
 const SPOTS_CENTER = centerOf(SPOTS);
-const MAX_AVATARS = 3;
 
 interface ChipLayout {
   x: number;
@@ -192,163 +195,6 @@ function ActivityMarker({
   );
 }
 
-const ActivityCard = memo(function ActivityCardView({
-  activity,
-  joined,
-  styles,
-  onPress,
-  onJoin,
-}: {
-  activity: Activity;
-  joined: boolean;
-  styles: HomeStyles;
-  onPress: (activityId: string) => void;
-  onJoin: (activityId: string) => void;
-}) {
-  const { t } = useTranslation();
-  const { colors } = useTheme();
-  const live = activityStatus(activity) === 'ongoing';
-  const host = getUser(activity.hostId);
-  const memberCount = activity.members.length + (joined ? 1 : 0);
-
-  return (
-    <Pressable
-      onPress={() => onPress(activity.id)}
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-      accessibilityRole="button"
-      accessibilityLabel={activity.title}
-    >
-      <View style={styles.cardTop}>
-        <View style={styles.cardHost}>
-          <Image source={host.avatar} style={styles.hostAvatar} />
-          <View style={styles.flexShrink}>
-            <Text style={styles.hostName}>{host.name}</Text>
-            <View style={styles.whenRow}>
-              <Icon
-                name={live ? 'pulse-outline' : 'time-outline'}
-                size={ms(13)}
-                color={colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.whenText,
-                  live ? styles.liveText : styles.soonText,
-                ]}
-              >
-                {live
-                  ? t('home.whenNow', {
-                      time: clockIn(
-                        activity.startsInMinutes + activity.durationMinutes,
-                      ),
-                    })
-                  : t('home.whenSoon', {
-                      time: clockIn(activity.startsInMinutes),
-                      minutes: activity.startsInMinutes,
-                    })}
-              </Text>
-            </View>
-          </View>
-        </View>
-        <View style={[styles.tag, !joined && styles.tagHighlight]}>
-          <Text style={styles.tagEmoji}>
-            {CATEGORY_EMOJI[activity.category]}
-          </Text>
-          <Text style={[styles.tagText, !joined && styles.tagTextHighlight]}>
-            {activity.tag}
-          </Text>
-        </View>
-      </View>
-
-      <View>
-        <Text style={styles.cardTitle}>{activity.title}</Text>
-        <Text style={styles.cardDescription} numberOfLines={1}>
-          {activity.description}
-        </Text>
-      </View>
-
-      {/* The photo the host posted, if any: under what it's about. */}
-      {activity.photo ? (
-        <Image source={activity.photo} style={styles.cardPhoto} />
-      ) : null}
-
-      <View style={styles.cardBottom}>
-        <View style={styles.cardMeta}>
-          <View style={styles.avatarStack}>
-            {activity.members.slice(0, MAX_AVATARS).map((member, i) => (
-              <Image
-                key={member.userId}
-                source={getUser(member.userId).avatar}
-                style={[styles.participant, i > 0 && styles.participantOverlap]}
-              />
-            ))}
-          </View>
-          <View style={styles.metaInfo}>
-            <Text style={styles.metaText} numberOfLines={1}>
-              {activity.capacity
-                ? t('home.joinedOf', {
-                    count: memberCount,
-                    capacity: activity.capacity,
-                  })
-                : t('home.joined', { count: memberCount })}
-            </Text>
-            <View style={styles.distanceRow}>
-              <Icon
-                name="location-outline"
-                size={ms(11)}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.distanceText} numberOfLines={1}>
-                {t('home.distanceAway', {
-                  distance: formatDistance(activity.distanceKm),
-                })}
-              </Text>
-            </View>
-          </View>
-        </View>
-        {joined ? (
-          <Pressable
-            onPress={() => onPress(activity.id)}
-            style={({ pressed }) => [
-              styles.joinedButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-          >
-            {live ? (
-              <PulseDot color={colors.white} size={ms(6)} />
-            ) : (
-              <Icon
-                name="checkmark-circle"
-                size={ms(14)}
-                color={colors.white}
-              />
-            )}
-            <Text style={styles.joinedText}>
-              {live ? t('home.joinedLiveBadge') : t('home.joinedBadge')}
-            </Text>
-          </Pressable>
-        ) : live ? (
-          <View style={styles.ongoingPill}>
-            <PulseDot color={colors.success} size={ms(6)} />
-            <Text style={styles.ongoingText}>{t('home.ongoingBadge')}</Text>
-          </View>
-        ) : (
-          <Pressable
-            onPress={() => onJoin(activity.id)}
-            style={({ pressed }) => [
-              styles.joinButton,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-          >
-            <Text style={styles.joinText}>{t('home.join')}</Text>
-          </Pressable>
-        )}
-      </View>
-    </Pressable>
-  );
-});
-
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Home'>,
   NativeStackScreenProps<RootStackParamList>
@@ -358,6 +204,7 @@ export default function HomeScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const cardStyles = useMemo(() => createCardStyles(colors), [colors]);
   const tabBarInset = useTabBarInset();
   const [bodyHeight, setBodyHeight] = useState(0);
   const [overlayHeight, setOverlayHeight] = useState(0);
@@ -485,13 +332,20 @@ export default function HomeScreen({ navigation, route }: Props) {
   // Set by the input's own touch, which bubbles before the screen's handler.
   const touchingSearch = useRef(false);
 
-  // What each activity is found by (built once; names in every language).
+  // Every browsable activity, again when the user makes one.
+  const activitiesVersion = useActivitiesVersion();
+  const BROWSABLE = useMemo(
+    () => browsable(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activitiesVersion],
+  );
+  // What each activity is found by (names in every language).
   const searchTexts = useMemo(
     () =>
       new Map(
         BROWSABLE.map(activity => [activity.id, searchTextsOf(activity)]),
       ),
-    [],
+    [BROWSABLE],
   );
   // Filters once typing pauses, not on every key.
   const debouncedQuery = useDebounce(query);
@@ -502,7 +356,7 @@ export default function HomeScreen({ navigation, route }: Props) {
           (category === 'all' || activity.category === category) &&
           matchesSearch(searchTexts.get(activity.id) ?? [], debouncedQuery),
       ),
-    [category, debouncedQuery, searchTexts],
+    [BROWSABLE, category, debouncedQuery, searchTexts],
   );
   /** Whole zoom level: clusters only change when the map crosses a level. */
   const [zoomLevel, setZoomLevel] = useState(INITIAL_ZOOM);
@@ -1034,16 +888,20 @@ export default function HomeScreen({ navigation, route }: Props) {
             }
           >
             {activities.length ? (
-              activities.map(activity => (
-                <ActivityCard
-                  key={activity.id}
-                  activity={activity}
-                  joined={isJoined(activity, joinedIds)}
-                  styles={styles}
-                  onPress={openActivity}
-                  onJoin={join}
-                />
-              ))
+              // The same two cards as Discover: with a picture, or without.
+              activities.map(activity => {
+                const Card = cardFor(activity);
+                return (
+                  <Card
+                    key={activity.id}
+                    activity={activity}
+                    joined={isJoined(activity, joinedIds)}
+                    styles={cardStyles}
+                    onOpen={openActivity}
+                    onJoin={join}
+                  />
+                );
+              })
             ) : (
               <Text style={styles.empty}>{t('home.empty')}</Text>
             )}

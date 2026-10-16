@@ -16,9 +16,7 @@ import { SPLASH_ACCENT, SPLASH_GLOW_SOFT, styles } from './styles';
 
 export { SPLASH_BACKGROUND } from './styles';
 
-const BRAND = 'DoTogether';
-/** "Do" stays warm brown, "Together" picks up the brand orange. */
-const ACCENT_INDEX = 2;
+const BRAND = 'ComeCrew';
 
 const LOGO_IN_MS = 620;
 const LETTER_DELAY_MS = 260;
@@ -261,7 +259,8 @@ export default function SplashScreen({
             <AnimatedLetter
               key={`${char}-${index}`}
               char={char}
-              accent={index >= ACCENT_INDEX}
+              // The whole name in the brand colour.
+              accent
               anim={letterAnims[index]}
             />
           ))}

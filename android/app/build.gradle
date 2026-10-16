@@ -79,7 +79,7 @@ android {
 
     namespace "com.logan.dotogether"
     defaultConfig {
-        applicationId "com.logan.dotogether"
+        applicationId "com.logan.comecrew"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

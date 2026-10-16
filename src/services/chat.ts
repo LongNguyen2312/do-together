@@ -104,7 +104,8 @@ export function seedThread(activityId: string): SeedThread {
   }
   const activity = getActivity(activityId);
   const [host, second = host, third = second] = chatMemberIds(activityId);
-  if (!activity || !host) {
+  // The user's own: a new group, nothing said yet.
+  if (!activity || !host || activity.mine) {
     const empty = { messages: [], readUntil: APP_START };
     seeds.set(activityId, empty);
     return empty;

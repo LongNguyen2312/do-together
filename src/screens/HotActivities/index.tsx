@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import PagedListScreen from '@/components/PagedListScreen';
 import { useJoinActivity } from '@/hooks/useJoinActivity';
 import { usePagedList } from '@/hooks/usePagedList';
-import { ActivityCard, FeaturedActivityCard } from '@/screens/Discover/cards';
+import { cardFor } from '@/screens/Discover/cards';
 import { createStyles as createCardStyles } from '@/screens/Discover/styles';
 import { fetchUpcomingActivities } from '@/services/discover';
 import { isJoined } from '@/services/mockData';
@@ -45,7 +45,7 @@ export default function HotActivitiesScreen({ navigation, route }: Props) {
   );
 
   const renderItem = ({ item }: { item: Activity }) => {
-    const Card = item.cover ? FeaturedActivityCard : ActivityCard;
+    const Card = cardFor(item);
     return (
       <Card
         activity={item}

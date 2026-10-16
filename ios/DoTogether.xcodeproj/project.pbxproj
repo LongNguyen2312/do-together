@@ -330,7 +330,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.logan.dotogether;
+				PRODUCT_BUNDLE_IDENTIFIER = com.logan.comecrew;
 				PRODUCT_NAME = DoTogether;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -360,7 +360,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.logan.dotogether;
+				PRODUCT_BUNDLE_IDENTIFIER = com.logan.comecrew;
 				PRODUCT_NAME = DoTogether;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;

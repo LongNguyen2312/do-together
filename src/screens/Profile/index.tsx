@@ -53,6 +53,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useTabBarInset } from '@/components/LiquidTabBar';
+import BrandTitle from '@/components/BrandTitle';
 import { HeaderButton } from '@/components/ScreenHeader';
 import { StoryThumb } from '@/components/StoryMedia';
 import PhotoViewer from '@/components/PhotoViewer';
@@ -1150,19 +1151,7 @@ function TopBar({
   return (
     <View style={styles.topBar}>
       <View style={styles.brand}>
-        {solid ? (
-          <>
-            <Image
-              source={require('@/assets/images/logo-mark.png')}
-              style={styles.brandLogo}
-              tintColor={colors.primary}
-              resizeMode="contain"
-            />
-            <Text style={styles.brandName} accessibilityRole="header">
-              {t('tabs.profile')}
-            </Text>
-          </>
-        ) : null}
+        {solid ? <BrandTitle text={t('tabs.profile')} /> : null}
       </View>
       <View style={styles.topActions}>
         {solid ? (

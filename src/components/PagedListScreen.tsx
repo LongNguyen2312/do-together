@@ -9,6 +9,8 @@ import {
   type ListRenderItem,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -48,8 +50,11 @@ export default function PagedListScreen<T>({
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const pullRefresh = usePullRefresh();
   const { items, loading, failed } = list;
+  const pullRefresh = usePullRefresh({
+    refreshing: loading === 'refresh',
+    onRefresh: list.refresh,
+  });
 
   const footer = () => {
     if (loading === 'more') {
@@ -76,7 +81,7 @@ export default function PagedListScreen<T>({
   const empty = () => (
     <View style={styles.center}>
       {loading === 'initial' ? (
-        <LogoLoader color={colors.primary} />
+        <LogoLoader color={colors.primary} size="large" />
       ) : (
         <Text style={styles.message}>
           {failed ? t('discover.loadFailed') : emptyText}
@@ -114,35 +119,41 @@ export default function PagedListScreen<T>({
 
       {/* The list, with the pull-to-refresh mark over its top. */}
       <View style={styles.listBox}>
-        <FlatList
-          data={items}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          extraData={extraData}
-          contentContainerStyle={[
-            styles.list,
-            { gap: itemGap, paddingBottom: insets.bottom + ms(16) },
-          ]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={loading === 'refresh'}
-              onRefresh={list.refresh}
-              tintColor={pullRefresh.refreshTint(colors.primary)}
-              colors={[colors.primary]}
+        {/* Pulled down (Android: by this gesture) to refresh. */}
+        <GestureDetector gesture={pullRefresh.gesture}>
+          <Animated.View style={pullRefresh.boxStyle}>
+            <FlatList
+              data={items}
+              keyExtractor={keyExtractor}
+              renderItem={renderItem}
+              extraData={extraData}
+              contentContainerStyle={[
+                styles.list,
+                { gap: itemGap, paddingBottom: insets.bottom + ms(16) },
+              ]}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                pullRefresh.native ? (
+                  <RefreshControl
+                    refreshing={loading === 'refresh'}
+                    onRefresh={list.refresh}
+                    tintColor={pullRefresh.tint}
+                  />
+                ) : undefined
+              }
+              onScroll={pullRefresh.onScroll}
+              scrollEventThrottle={pullRefresh.scrollEventThrottle}
+              onEndReached={list.loadMore}
+              onEndReachedThreshold={0.4}
+              ListFooterComponent={footer}
+              ListEmptyComponent={empty}
             />
-          }
-          onScroll={pullRefresh.onScroll}
-          scrollEventThrottle={pullRefresh.scrollEventThrottle}
-          onEndReached={list.loadMore}
-          onEndReachedThreshold={0.4}
-          ListFooterComponent={footer}
-          ListEmptyComponent={empty}
-        />
+          </Animated.View>
+        </GestureDetector>
         <PullRefreshMark
-          scrollY={pullRefresh.scrollY}
+          pull={pullRefresh.pull}
           refreshing={loading === 'refresh'}
-          color={colors.primary}
+          color={colors.textMuted}
         />
       </View>
     </View>

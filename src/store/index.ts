@@ -72,6 +72,7 @@ const activityPersistConfig = {
     'friendRequestIds',
     'unfriendedIds',
     'savedIds',
+    'createdActivities',
   ],
 };
 

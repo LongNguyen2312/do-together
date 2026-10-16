@@ -13,12 +13,16 @@ import { useI18nSync } from '@/hooks/useI18nSync';
 import RootNavigator from '@/navigators/RootNavigator';
 import SplashScreen, { SPLASH_BACKGROUND } from '@/screens/Splash';
 import { persistor, store } from '@/store';
+import { syncMyActivities } from '@/services/myActivitiesSync';
 import { resetOnboarding } from '@/store/slices/appSlice';
 import { clearUser } from '@/store/slices/authSlice';
 import { loadProvinces } from '@/store/slices/placesSlice';
 import { ThemeProvider } from '@/theme';
 import { FORCE_ONBOARDING, SKIP_TO_MAIN } from '@/utils/constants';
 import '@/translations';
+
+// The user's own activities, listed with the rest from the start.
+syncMyActivities(store);
 
 function AppShell() {
   useI18nSync();

@@ -149,17 +149,6 @@ export function createStyles(colors: AppColors) {
       alignItems: 'center',
       gap: ms(8),
     },
-    brandLogo: {
-      width: ms(20),
-      height: ms(20),
-    },
-    brandName: {
-      fontSize: fs(17),
-      lineHeight: fs(22),
-      fontFamily: fonts.bold,
-      letterSpacing: -0.3,
-      color: colors.primary,
-    },
     topActions: {
       flexDirection: 'row',
       gap: ms(8),

@@ -1,3 +1,4 @@
+import { ME } from '@/types/chat';
 import type {
   Activity,
   ActivityCategory,
@@ -814,6 +815,40 @@ export const COMMUNITIES: Community[] = [
     meetingPlace: 'Hoan Kiem Lake',
   },
 ];
+
+/*
+ * The user's own activities, made from their "I'm free" signals and kept in
+ * the store; mixed into ACTIVITIES (in place, so every list and lookup sees
+ * them) by setMyActivities, with a version for screens to re-read by.
+ */
+let activitiesVersion = 0;
+const activityListeners = new Set<() => void>();
+
+export const getActivitiesVersion = () => activitiesVersion;
+
+export function onActivitiesChange(listener: () => void) {
+  activityListeners.add(listener);
+  return () => {
+    activityListeners.delete(listener);
+  };
+}
+
+/** The user's own activities, in place of the ones there before. */
+export function setMyActivities(mine: readonly Activity[]) {
+  for (let i = ACTIVITIES.length - 1; i >= 0; i--) {
+    if (ACTIVITIES[i].mine) {
+      ACTIVITIES.splice(i, 1);
+    }
+  }
+  ACTIVITIES.unshift(...mine);
+  activitiesVersion++;
+  activityListeners.forEach(listener => listener());
+}
+
+/** The signed-in user as others see them, e.g. as the host of their activity. */
+export function setMe(user: User) {
+  USERS[ME] = user;
+}
 
 /** The group chat of a community, by the community's id. */
 export const communityChatId = (communityId: string) =>

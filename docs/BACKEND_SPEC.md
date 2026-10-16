@@ -879,6 +879,7 @@ POST /broadcasts
 - Mỗi user tối đa **1** broadcast hiệu lực; tạo mới thì thay cái cũ (cần chốt).
 - Response gồm `matchedCount` (số người rảnh phù hợp trong bán kính).
 - Giờ tự chọn không được ở quá khứ (FE đã chặn; BE validate lại).
+- **Phát tín hiệu = tạo một hoạt động.** `POST /broadcasts` tạo luôn một `Activity` (trả về `activityId`): host là người phát, `category` = `activity` (hoạt động tự đặt → `other`, kèm `customActivityId`), `title` = tên hoạt động, `description` = `note`, `startsAt` = `availableFrom`, `durationMinutes` theo `duration`, vị trí = `location`, `photoUrl` = ảnh mô tả (nếu có), `instantMatch = true`, không giới hạn số người. Người phát tự động là thành viên (và host), có nhóm chat riêng rỗng. Hoạt động này hiện trên Home/Discover cho người khác như mọi hoạt động; FE sau khi phát mở luôn màn chi tiết của nó. Huỷ broadcast (`DELETE /broadcasts/{id}`) thì huỷ luôn hoạt động (báo cho người đã tham gia). FE hiện lưu trên máy (`createdActivities` trong `activitySlice`, `src/services/myActivities.ts`).
 - `photoUploadId` không bắt buộc, tối đa 1 ảnh. Có ảnh thì ảnh đó là thumbnail của broadcast (danh sách / bản đồ người rảnh); không có thì giữ như cũ: ảnh của hoạt động tự đặt hoặc icon của loại hoạt động. FE (màn "Mình rảnh", thẻ "Ảnh mô tả") nén ảnh cạnh dài ≤ 1600 px trước khi upload và có ô "Xem trước" theo đúng quy tắc này.
 
 ### 8.5 Hoạt động tự đặt (I'm Free → "Khác")

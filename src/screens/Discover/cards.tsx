@@ -222,6 +222,17 @@ interface ActivityCardProps {
   onJoin: (activityId: string) => void;
 }
 
+/**
+ * The picture an activity is shown by: the photo its host posted, else its
+ * cover. With one, it's shown as a FeaturedActivityCard; without, as an
+ * ActivityCard. Just those two.
+ */
+export const coverOf = (activity: Activity) => activity.photo ?? activity.cover;
+
+/** The card an activity is shown as: with a picture, or without. */
+export const cardFor = (activity: Activity) =>
+  coverOf(activity) ? FeaturedActivityCard : ActivityCard;
+
 function startLabel(activity: Activity, t: TFunction) {
   return activity.startsInMinutes <= 0
     ? t('discover.live')
@@ -342,8 +353,8 @@ export const FeaturedActivityCard = memo(function FeaturedActivityCardView(
       accessibilityLabel={activity.title}
     >
       <View style={styles.hero}>
-        {activity.cover ? (
-          <Image source={activity.cover} style={styles.heroImage} />
+        {coverOf(activity) ? (
+          <Image source={coverOf(activity)} style={styles.heroImage} />
         ) : null}
         <Svg style={StyleSheet.absoluteFill}>
           <Defs>
@@ -501,11 +512,6 @@ export const ActivityCard = memo(function ActivityCardView(
           </Text>
         </View>
       </View>
-
-      {/* The photo the host posted, if any: under what it's about. */}
-      {activity.photo ? (
-        <Image source={activity.photo} style={styles.cardPhoto} />
-      ) : null}
 
       <View style={styles.cardBottom}>
         <View style={styles.cardMeta}>

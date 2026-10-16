@@ -184,7 +184,7 @@ export default function CityPickerSheet({
             // Still waiting on the API started with the app.
             loading ? (
               <View style={styles.loading}>
-                <LogoLoader color={colors.primary} />
+                <LogoLoader color={colors.primary} size="large" />
               </View>
             ) : (
               <Text style={styles.empty}>{t('profile.places.noResults')}</Text>

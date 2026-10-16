@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ms } from 'react-native-size-matters';
@@ -99,7 +100,6 @@ export default function NotificationsScreen({ navigation }: Props) {
     chips.center(id);
   };
   const [refreshing, setRefreshing] = useState(false);
-  const pullRefresh = usePullRefresh();
 
   const rows = useMemo<Row[]>(() => {
     const shown = notifications.filter(item =>
@@ -127,6 +127,10 @@ export default function NotificationsScreen({ navigation }: Props) {
     await dispatch(refreshNotifications());
     setRefreshing(false);
   };
+  const pullRefresh = usePullRefresh({
+    refreshing: refreshing,
+    onRefresh: refresh,
+  });
 
   /** Read, then on to what it's about. */
   const open = useCallback(
@@ -278,58 +282,64 @@ export default function NotificationsScreen({ navigation }: Props) {
 
       {/* The list, with the pull-to-refresh mark over its top. */}
       <View style={styles.listBox}>
-        <Animated.FlatList
-          data={rows}
-          keyExtractor={row => row.key}
-          // Rows below close the gap a deleted one leaves.
-          itemLayoutAnimation={LinearTransition.duration(220)}
-          renderItem={({ item: row }) =>
-            row.type === 'section' ? (
-              <Text style={styles.section} accessibilityRole="header">
-                {t(`notifications.sections.${row.section}`)}
-              </Text>
-            ) : (
-              <NotificationRow
-                item={row.item}
-                answer={answers[row.item.id]}
-                styles={styles}
-                onPress={open}
-                onAnswer={answer}
-                onDelete={remove}
-              />
-            )
-          }
-          ListHeaderComponent={header}
-          ListEmptyComponent={
-            notifications.length ? (
-              <FilterEmpty filter={filter} styles={styles} />
-            ) : (
-              <Empty
-                styles={styles}
-                onExplore={() =>
-                  navigation.navigate('Main', { screen: 'Discover' })
-                }
-              />
-            )
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={refresh}
-              tintColor={pullRefresh.refreshTint(colors.primary)}
-              colors={[colors.primary]}
+        {/* Pulled down (Android: by this gesture) to refresh. */}
+        <GestureDetector gesture={pullRefresh.gesture}>
+          <Animated.View style={pullRefresh.boxStyle}>
+            <Animated.FlatList
+              data={rows}
+              keyExtractor={row => row.key}
+              // Rows below close the gap a deleted one leaves.
+              itemLayoutAnimation={LinearTransition.duration(220)}
+              renderItem={({ item: row }) =>
+                row.type === 'section' ? (
+                  <Text style={styles.section} accessibilityRole="header">
+                    {t(`notifications.sections.${row.section}`)}
+                  </Text>
+                ) : (
+                  <NotificationRow
+                    item={row.item}
+                    answer={answers[row.item.id]}
+                    styles={styles}
+                    onPress={open}
+                    onAnswer={answer}
+                    onDelete={remove}
+                  />
+                )
+              }
+              ListHeaderComponent={header}
+              ListEmptyComponent={
+                notifications.length ? (
+                  <FilterEmpty filter={filter} styles={styles} />
+                ) : (
+                  <Empty
+                    styles={styles}
+                    onExplore={() =>
+                      navigation.navigate('Main', { screen: 'Discover' })
+                    }
+                  />
+                )
+              }
+              refreshControl={
+                pullRefresh.native ? (
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={refresh}
+                    tintColor={pullRefresh.tint}
+                  />
+                ) : undefined
+              }
+              onScroll={pullRefresh.onScroll}
+              scrollEventThrottle={pullRefresh.scrollEventThrottle}
+              contentContainerStyle={styles.list}
+              onScrollBeginDrag={closeSwipedRow}
+              showsVerticalScrollIndicator={false}
             />
-          }
-          onScroll={pullRefresh.onScroll}
-          scrollEventThrottle={pullRefresh.scrollEventThrottle}
-          contentContainerStyle={styles.list}
-          onScrollBeginDrag={closeSwipedRow}
-          showsVerticalScrollIndicator={false}
-        />
+          </Animated.View>
+        </GestureDetector>
         <PullRefreshMark
-          scrollY={pullRefresh.scrollY}
+          pull={pullRefresh.pull}
           refreshing={refreshing}
-          color={colors.primary}
+          color={colors.textMuted}
         />
       </View>
     </SafeAreaView>

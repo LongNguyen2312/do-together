@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "DoTogether",
+    "appName": "ComeCrew",
     "loading": "Loading...",
     "cancel": "Cancel",
     "done": "Done",
@@ -83,7 +83,7 @@
     "strengthFair": "Pretty good",
     "strengthStrong": "Very strong & secure",
     "strengthMax": "Max security",
-    "termsPrefix": "I agree to DoTogether's ",
+    "termsPrefix": "I agree to ComeCrew's ",
     "termsOfService": "Terms of Service",
     "termsAnd": " and ",
     "privacyPolicy": "Privacy Policy",
@@ -98,7 +98,7 @@
   "forgotPassword": {
     "badge": "Account recovery",
     "title": "Forgot password?",
-    "description": "No worries! Enter your DoTogether account email and we'll send you a code to reset your password.",
+    "description": "No worries! Enter your ComeCrew account email and we'll send you a code to reset your password.",
     "codeInfo": "A 6-digit security code will be sent to your inbox right away.",
     "emailLabel": "Email address",
     "required": "Required",
@@ -607,7 +607,7 @@
     "recents": "Recents",
     "title": "Add to story",
     "camera": "Camera",
-    "limited": "You've shared only some photos with DoTogether.",
+    "limited": "You've shared only some photos with ComeCrew.",
     "manage": "Manage",
     "noAccessTitle": "See your photos here",
     "noAccess": "Allow access to your photos and videos to pick one quickly for your story.",
@@ -826,7 +826,7 @@
     "language": "Language",
     "darkMode": "Dark mode",
     "logOut": "Log out",
-    "logOutTitle": "Log out of DoTogether?",
+    "logOutTitle": "Log out of ComeCrew?",
     "logOutMessage": "You can log back in any time.",
     "edit": {
       "title": "Edit profile",

@@ -60,6 +60,8 @@ export interface Activity {
    * the chat screens work the same; never listed as an activity.
    */
   communityId?: string;
+  /** Made by the signed-in user, from their "I'm free" signal. */
+  mine?: boolean;
   category: ActivityCategory;
   title: string;
   /** Short label shown on the map marker. */

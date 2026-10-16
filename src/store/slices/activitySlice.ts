@@ -1,5 +1,10 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
+import type { CreatedActivity } from '@/services/myActivities';
+
+/** Kept on the device, the newest. */
+const MAX_CREATED = 20;
+
 interface ActivityState {
   /** Activities the signed-in user has joined. */
   joinedIds: string[];
@@ -17,6 +22,8 @@ interface ActivityState {
   unfriendedIds: string[];
   /** Activities the user has saved, oldest first. */
   savedIds: string[];
+  /** Activities the user made from "I'm free" signals, newest first. */
+  createdActivities: CreatedActivity[];
 }
 
 const initialState: ActivityState = {
@@ -42,6 +49,7 @@ const initialState: ActivityState = {
   friendRequestIds: [],
   unfriendedIds: [],
   savedIds: [],
+  createdActivities: [],
 };
 
 const activitySlice = createSlice({
@@ -98,6 +106,16 @@ const activitySlice = createSlice({
         ? ids.filter(id => id !== userId)
         : [...ids, userId];
     },
+    /** Made from an "I'm free" signal: it's theirs, and they're in it. */
+    createActivity: (state, action: PayloadAction<CreatedActivity>) => {
+      state.createdActivities = [
+        action.payload,
+        ...state.createdActivities,
+      ].slice(0, MAX_CREATED);
+      if (!state.joinedIds.includes(action.payload.id)) {
+        state.joinedIds.push(action.payload.id);
+      }
+    },
     toggleSave: (state, action: PayloadAction<string>) => {
       const ids = state.savedIds;
       state.savedIds = ids.includes(action.payload)
@@ -142,6 +160,7 @@ export const {
   toggleActivityInvite,
   toggleFollow,
   toggleSave,
+  createActivity,
   sendFriendRequest,
   cancelFriendRequest,
   unfriend,

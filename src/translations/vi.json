@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "DoTogether",
+    "appName": "ComeCrew",
     "loading": "Đang tải...",
     "cancel": "Huỷ",
     "done": "Xong",
@@ -87,10 +87,10 @@
     "termsOfService": "Điều khoản dịch vụ",
     "termsAnd": " và ",
     "privacyPolicy": "Chính sách quyền riêng tư",
-    "termsSuffix": " của DoTogether.",
+    "termsSuffix": " của ComeCrew.",
     "termsRequired": "Vui lòng đồng ý với điều khoản để tiếp tục.",
     "createAccount": "Tạo tài khoản ngay",
-    "haveAccount": "Đã có tài khoản DoTogether?",
+    "haveAccount": "Đã có tài khoản ComeCrew?",
     "signInLink": "Đăng nhập",
     "signUpErrorTitle": "Không thể tạo tài khoản",
     "back": "Quay lại"
@@ -98,7 +98,7 @@
   "forgotPassword": {
     "badge": "Khôi phục tài khoản",
     "title": "Quên mật khẩu?",
-    "description": "Đừng lo lắng! Chuyện nhỏ thôi. Nhập email tài khoản DoTogether để nhận mã xác nhận đặt lại mật khẩu ngay nhé.",
+    "description": "Đừng lo lắng! Chuyện nhỏ thôi. Nhập email tài khoản ComeCrew để nhận mã xác nhận đặt lại mật khẩu ngay nhé.",
     "codeInfo": "Mã số bảo mật gồm 6 chữ số sẽ được gửi tức thì qua hộp thư của bạn.",
     "emailLabel": "Địa chỉ Email",
     "required": "Bắt buộc",
@@ -607,7 +607,7 @@
     "recents": "Gần đây",
     "title": "Thêm vào tin",
     "camera": "Camera",
-    "limited": "Bạn mới chia sẻ một số ảnh với DoTogether.",
+    "limited": "Bạn mới chia sẻ một số ảnh với ComeCrew.",
     "manage": "Quản lý",
     "noAccessTitle": "Xem ảnh của bạn tại đây",
     "noAccess": "Cho phép truy cập ảnh và video để chọn nhanh cho tin của bạn.",
@@ -826,7 +826,7 @@
     "language": "Ngôn ngữ",
     "darkMode": "Chế độ tối",
     "logOut": "Đăng xuất",
-    "logOutTitle": "Đăng xuất khỏi DoTogether?",
+    "logOutTitle": "Đăng xuất khỏi ComeCrew?",
     "logOutMessage": "Bạn có thể đăng nhập lại bất cứ lúc nào.",
     "edit": {
       "title": "Sửa hồ sơ",

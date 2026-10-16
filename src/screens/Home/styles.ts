@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { ms } from 'react-native-size-matters';
 
-import { fonts, fs, lightColors, type AppColors } from '@/theme';
+import { fonts, fs, type AppColors } from '@/theme';
 
 const SCREEN_PADDING = ms(16);
 const MARKER_AVATAR = ms(32);
@@ -23,13 +23,6 @@ export function createStyles(colors: AppColors) {
     safe: {
       flex: 1,
       backgroundColor: colors.background,
-    },
-    flexShrink: {
-      flexShrink: 1,
-    },
-    pressed: {
-      opacity: 0.85,
-      transform: [{ scale: 0.97 }],
     },
 
     body: {
@@ -300,7 +293,7 @@ export function createStyles(colors: AppColors) {
       justifyContent: 'space-between',
       paddingHorizontal: SCREEN_PADDING,
       paddingTop: ms(10),
-      paddingBottom: ms(14),
+      paddingBottom: ms(6),
     },
     sheetTitleRow: {
       flexDirection: 'row',
@@ -328,8 +321,11 @@ export function createStyles(colors: AppColors) {
       textTransform: 'uppercase',
       color: colors.text,
     },
+    // Room above the first card, or the list (which clips what's outside
+    // it) would cut its shadow off along the top.
     cards: {
       paddingHorizontal: SCREEN_PADDING,
+      paddingTop: ms(10),
       gap: ms(12),
     },
     empty: {
@@ -338,202 +334,6 @@ export function createStyles(colors: AppColors) {
       fontFamily: fonts.regular,
       textAlign: 'center',
       color: colors.textSecondary,
-    },
-
-    cardPhoto: {
-      width: '100%',
-      height: ms(140),
-      borderRadius: ms(12),
-      backgroundColor: colors.surfaceHigh,
-    },
-    // Lifted off the sheet by a soft shadow, so each stands out.
-    card: {
-      gap: ms(10),
-      padding: ms(16),
-      borderRadius: ms(16),
-      backgroundColor: colors.card,
-      shadowColor: colors.black,
-      shadowOpacity: 0.1,
-      shadowRadius: ms(12),
-      shadowOffset: { width: 0, height: ms(4) },
-      elevation: 4,
-    },
-    cardPressed: {
-      opacity: 0.92,
-      transform: [{ scale: 0.99 }],
-    },
-    cardTop: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      gap: ms(8),
-    },
-    cardHost: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(10),
-    },
-    hostAvatar: {
-      width: ms(36),
-      height: ms(36),
-      borderRadius: ms(18),
-    },
-    hostName: {
-      fontSize: fs(12.5),
-      lineHeight: fs(16),
-      fontFamily: fonts.semibold,
-      color: colors.text,
-    },
-    whenRow: {
-      marginTop: ms(2),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-    },
-    whenText: {
-      flexShrink: 1,
-      fontSize: fs(11.5),
-      lineHeight: fs(15),
-      fontFamily: fonts.semibold,
-    },
-    tag: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(3),
-      paddingHorizontal: ms(8),
-      paddingVertical: ms(4),
-      borderRadius: ms(999),
-      backgroundColor: colors.surfaceHigh,
-    },
-    // Own box so the glyph centers against the label instead of sitting on its baseline.
-    tagEmoji: {
-      width: fs(12),
-      height: fs(12),
-      fontSize: fs(9.5),
-      lineHeight: fs(12),
-      textAlign: 'center',
-      includeFontPadding: false,
-    },
-    tagHighlight: {
-      backgroundColor: colors.primarySoft,
-    },
-    tagText: {
-      fontSize: fs(9.5),
-      lineHeight: fs(12),
-      fontFamily: fonts.bold,
-      color: colors.text,
-      includeFontPadding: false,
-    },
-    tagTextHighlight: {
-      color: colors.primaryDark,
-    },
-    cardTitle: {
-      fontSize: fs(15),
-      lineHeight: fs(20),
-      fontFamily: fonts.bold,
-      letterSpacing: -0.3,
-      color: colors.text,
-    },
-    cardDescription: {
-      marginTop: ms(2),
-      fontSize: fs(13),
-      fontFamily: fonts.regular,
-      lineHeight: fs(18),
-      color: colors.textSecondary,
-    },
-    cardBottom: {
-      marginTop: ms(4),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(12),
-    },
-    cardMeta: {
-      flex: 1,
-      minWidth: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(8),
-    },
-    metaInfo: {
-      flexShrink: 1,
-      gap: ms(2),
-    },
-    distanceRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(3),
-    },
-    distanceText: {
-      flexShrink: 1,
-      fontSize: fs(10.5),
-      lineHeight: fs(13),
-      fontFamily: fonts.regular,
-      color: colors.textSecondary,
-    },
-    avatarStack: {
-      flexDirection: 'row',
-    },
-    participant: {
-      width: ms(28),
-      height: ms(28),
-      borderRadius: ms(14),
-      borderWidth: 2,
-      borderColor: colors.card,
-    },
-    participantOverlap: {
-      marginLeft: -ms(8),
-    },
-    metaText: {
-      fontSize: fs(10.5),
-      lineHeight: fs(13),
-      fontFamily: fonts.semibold,
-      color: colors.textSecondary,
-    },
-    joinButton: {
-      flexShrink: 0,
-      height: ms(30),
-      justifyContent: 'center',
-      paddingHorizontal: ms(14),
-      borderRadius: ms(999),
-      backgroundColor: colors.primary,
-    },
-    joinText: {
-      fontSize: fs(11.5),
-      fontFamily: fonts.bold,
-      color: colors.white,
-    },
-    joinedButton: {
-      flexShrink: 0,
-      height: ms(30),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(4),
-      paddingHorizontal: ms(12),
-      borderRadius: ms(999),
-      // Light-theme green in both modes: dark mode's success is too pale for white text.
-      backgroundColor: lightColors.success,
-    },
-    joinedText: {
-      fontSize: fs(11.5),
-      fontFamily: fonts.bold,
-      color: colors.white,
-    },
-    // A label, not a button: ongoing activities can't be joined.
-    ongoingPill: {
-      flexShrink: 0,
-      height: ms(30),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: ms(6),
-      paddingHorizontal: ms(12),
-      borderRadius: ms(999),
-      backgroundColor: `${colors.success}1F`,
-    },
-    ongoingText: {
-      fontSize: fs(11.5),
-      fontFamily: fonts.bold,
-      color: colors.success,
     },
   });
 }

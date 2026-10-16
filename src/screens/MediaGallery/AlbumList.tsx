@@ -57,7 +57,7 @@ export default function AlbumList({
   if (!rows) {
     return (
       <View style={styles.footer}>
-        <LogoLoader color={colors.white} />
+        <LogoLoader color={colors.white} size="large" />
       </View>
     );
   }

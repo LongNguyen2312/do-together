@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   isLiquidGlassSupported,
   LiquidGlassView,
@@ -42,45 +43,55 @@ export default function EditorSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable
-        style={styles.sheetBackdrop}
-        onPress={onClose}
-        accessible={false}
-      >
-        {/* Swallows taps, so only the space above the panel closes it. */}
-        <Pressable style={styles.sheet} accessible={false}>
-          <LiquidGlassView
-            effect="regular"
-            colorScheme={isDark ? 'dark' : 'light'}
-            style={[
-              styles.sheetGlass,
-              !isLiquidGlassSupported && styles.sheetGlassFallback,
-            ]}
-          />
-          <View style={styles.sheetHandle} />
-          <View style={styles.sheetHeader}>
-            <View style={styles.sheetHeading}>
-              <Text style={styles.sheetTitle}>{title}</Text>
-              {subtitle ? (
-                <Text style={styles.sheetSubtitle}>{subtitle}</Text>
-              ) : null}
-            </View>
-            <Pressable
-              onPress={onClose}
-              hitSlop={ms(8)}
-              style={({ pressed }) => [
-                styles.sheetClose,
-                pressed && styles.pressed,
+      {/* A modal is its own root: gestures in it (e.g. pulling to refresh
+          on Android) need one of their own. */}
+      <GestureHandlerRootView style={sheetRootStyle.root}>
+        <Pressable
+          style={styles.sheetBackdrop}
+          onPress={onClose}
+          accessible={false}
+        >
+          {/* Swallows taps, so only the space above the panel closes it. */}
+          <Pressable style={styles.sheet} accessible={false}>
+            <LiquidGlassView
+              effect="regular"
+              colorScheme={isDark ? 'dark' : 'light'}
+              style={[
+                styles.sheetGlass,
+                !isLiquidGlassSupported && styles.sheetGlassFallback,
               ]}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.close')}
-            >
-              <Icon name="close" size={ms(18)} color={colors.text} />
-            </Pressable>
-          </View>
-          {children}
+            />
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetHeading}>
+                <Text style={styles.sheetTitle}>{title}</Text>
+                {subtitle ? (
+                  <Text style={styles.sheetSubtitle}>{subtitle}</Text>
+                ) : null}
+              </View>
+              <Pressable
+                onPress={onClose}
+                hitSlop={ms(8)}
+                style={({ pressed }) => [
+                  styles.sheetClose,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
+                <Icon name="close" size={ms(18)} color={colors.text} />
+              </Pressable>
+            </View>
+            {children}
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
+
+const sheetRootStyle = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

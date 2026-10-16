@@ -13,8 +13,8 @@ import LogoMark from '@/components/LogoMark';
 /** Lighting the mark from dark and drawing the light back off it. */
 export const LOGO_LOOP_MS = 2400;
 
-/** As big as the system spinner's small and large sizes, about. */
-const SIZES = { small: ms(22), large: ms(36) };
+/** A little bigger than the system spinner's small and large sizes. */
+const SIZES = { small: ms(25), large: ms(40) };
 
 interface Props {
   /** Colour of the screen's loading: white over photos, the brand's on pages. */
